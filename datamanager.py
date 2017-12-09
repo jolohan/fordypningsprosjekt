@@ -53,7 +53,6 @@ class DataManager():
                 unique_days = []
                 for row in days:
                     row_split = row.split('-')
-                    print(row_split)
                     row_split = [(int)(cell) for cell in row_split]
                     row = datetime.date(row_split[0], row_split[1], row_split[2])
                     unique_days.append(row)
@@ -69,11 +68,10 @@ class DataManager():
             unique_days = return_first_column_of_query_result(query_result)
             unique_days = np.array(unique_days)
         unique_days.sort()
-        for i, day in enumerate(unique_days):
-            print(day)
         return unique_days
 
     def split_days_into_training_test_vaildation(self):
+        print("splitting training days")
         self.training_days = []
         self.training_days_year_week_weekday = []
         self.test_days = []
@@ -83,7 +81,8 @@ class DataManager():
             number = rnd.random()
             if (number<self.training_set_size):
                 self.training_days.append(day)
-                self.training_days.append(convert_to_year_week_weekday(day))
+                self.training_days_year_week_weekday\
+                    .append(convert_to_year_week_weekday(day))
                 counters[0] += 1
             elif (number<self.training_set_size+self.test_set_size):
                 self.test_days.append(day)
@@ -91,7 +90,7 @@ class DataManager():
             else:
                 self.validation_days.append(day)
                 counters[2] += 1
-        #print(counters)
+        print("Counters: ", counters)
 
     def set_training_trips(self):
         self.training_trips = []
@@ -106,7 +105,7 @@ class DataManager():
             else:
                 counters[1] += 1
 
-        print(counters)
+        print("Counters: ",counters)
 
     def query(self, query):
         client = bigquery.Client()
@@ -123,39 +122,43 @@ class DataManager():
         formatted_trips = []
         for trip in trip_data:
             member_ID = trip[1]
-            start_station = trip[2]
-            end_station = trip[3]
-            start_time = trip[5]
-            end_time = trip[6]
+            if (isinstance(trip[3], int)):
+                start_station = trip[2]
+                end_station = trip[3]
+                start_time = trip[5]
+                end_time = trip[6]
+            else:
+                start_time = trip[3]
+                end_time = trip[4]
+                start_station = trip[5]
+                end_station = trip[6]
             if end_station == None:
                 pass
             else:
-                start_time = self.split_date_time_object(start_time)
-                end_time = self.split_date_time_object(end_time)
+                start_time = split_date_time_object(start_time)
+                end_time = split_date_time_object(end_time)
                 formatted_trip = [start_station, end_station]
                 formatted_trip += start_time
                 formatted_trip += end_time
                 formatted_trips.append(formatted_trip)
-
-        #print(len(trip_data))
+                #print(len(trip_data))
         formatted_trips = np.array(formatted_trips)
         return formatted_trips
 
-    def split_date_time_object(self, date_time, remove_time=False):
-        year = (int)(date_time.year)
-        month = (int)(date_time.month)
-        day = (int)(date_time.day)
-        week = (int)(datetime.date(year, month, day).isocalendar()[1])
-        day_of_week = (int)(date_time.weekday())
-        if (not remove_time):
-            minutes_after_midnight = (int)(date_time.hour*60 + date_time.minute)
-            return [year, week, day_of_week, minutes_after_midnight]
-        #print(year, month, day, week, day_of_week)
-        return [year, week, day_of_week]
-
-    def set_formatted_trips_by_user(self, userID=18340, load_from_file=True):
-        query_job_trips = self.query_all_trips_by_user(userID=userID)
-        trips = self.format_trip_query_to_data(query_job_result=query_job_trips)
+    def set_formatted_trips_by_user(self, userID=18341, load_from_file=True):
+        if load_from_file:
+            result_from_csv \
+                = open('data/trips_by_user/user_' + str(userID) + '.csv', 'r').readlines()
+            result_from_csv = [row.split(',') for row in result_from_csv]
+            result_from_query_or_csv = []
+            for row in result_from_csv:
+                formatted_row = [cell[1:-1] for cell in row]
+                formatted_row[3] = convert_string_to_date(row[3][1:-1])
+                formatted_row[4] = convert_string_to_date(row[4][1:-1])
+                result_from_query_or_csv.append(formatted_row)
+        else:
+            result_from_query_or_csv = self.query_all_trips_by_user(userID=userID)
+        trips = self.format_trip_query_to_data(query_job_result=result_from_query_or_csv)
         self.all_trips = trips
 
     def set_normalized_trips_for_user(self):
@@ -180,6 +183,18 @@ def return_first_column_of_query_result(query_result):
         return_array.append(row[0])
     return return_array
 
+def split_date_time_object(date_time, remove_time=False):
+    year = (int)(date_time.year)
+    month = (int)(date_time.month)
+    day = (int)(date_time.day)
+    week = (int)(datetime.date(year, month, day).isocalendar()[1])
+    day_of_week = (int)(date_time.weekday())
+    if (not remove_time):
+        minutes_after_midnight = (int)(date_time.hour*60 + date_time.minute)
+        return [year, week, day_of_week, minutes_after_midnight]
+    #print(year, month, day, week, day_of_week)
+    return [year, week, day_of_week]
+
 def convert_to_year_week_weekday(day):
     year = (int)(day.year)
     month = (int)(day.month)
@@ -187,6 +202,18 @@ def convert_to_year_week_weekday(day):
     week = (int)(datetime.date(year, month, day_number).isocalendar()[1])
     day_of_week = (int)(day.weekday())
     return [year, week, day_of_week]
+
+def convert_string_to_date(date_string):
+    date_time_numbers = []
+    date_time_split = date_string.split(" ")
+    date_split = date_time_split[0].split(".")
+    for number in date_split:
+        date_time_numbers.append((int)(number))
+    time_split = date_time_split[1].split(":")
+    for number in time_split:
+        date_time_numbers.append((int)(number))
+    return datetime.datetime(date_time_numbers[2], date_time_numbers[1], date_time_numbers[0],
+                             date_time_numbers[3], date_time_numbers[4], date_time_numbers[5])
 
 
 if __name__ == '__main__':

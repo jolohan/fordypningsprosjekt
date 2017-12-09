@@ -4,7 +4,6 @@ def add_all_data_from_year(year=2016):
     global users
     csvfile = open('data/trips_'+str(year)+'.csv', 'r').readlines()
     for i, row in enumerate(csvfile):
-        if ()
         if (i == 0):
             continue
         user_ID = row.split(',')[1]
