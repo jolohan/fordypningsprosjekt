@@ -34,3 +34,5 @@ if __name__ == '__main__':
 	trip = predictors.test_trip_data[-1]
 	best_matching_trip = predictors.prediction_of_end_station_by_find_best_matching_trip(trip)
 	print(trip, best_matching_trip)
+	data_manager.set_training_trips()
+	print("executed main in trainer")

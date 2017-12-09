@@ -38,17 +38,19 @@ class DataManager():
         self.all_trips = None
         self.all_normalized_trips = None
         self.all_normalized_trips_without_end_station = None
+        print("all days are to be collected")
         self.all_days = self.query_all_unique_days_in_trips()
         self.split_days_into_training_test_vaildation()
 
     # Find all unique days in trips so they can be split into training/test
     def query_all_unique_days_in_trips(self):
-
         query_text = 'SELECT CAST(started_at AS DATE) ' \
                      'FROM `uip-students.oslo_bysykkel_legacy.trip` T ' \
                      'GROUP BY CAST(started_at AS DATE) ' \
                      'LIMIT 10000'
+        print("collecting query result...")
         query_result = self.query(query_text)
+        print("got query result")
         #days_matrix = [self.split_date_time_object(date[0], remove_time=True) for date in query_result]
         unique_days = return_first_column_of_query_result(query_result)
         unique_days = np.array(unique_days)
@@ -59,6 +61,7 @@ class DataManager():
 
     def split_days_into_training_test_vaildation(self):
         self.training_days = []
+        self.training_days_year_week_weekday = []
         self.test_days = []
         self.validation_days = []
         counters = [0, 0, 0]
@@ -66,6 +69,7 @@ class DataManager():
             number = rnd.random()
             if (number<self.training_set_size):
                 self.training_days.append(day)
+                self.training_days.append(convert_to_year_week_weekday(day))
                 counters[0] += 1
             elif (number<self.training_set_size+self.test_set_size):
                 self.test_days.append(day)
@@ -75,15 +79,24 @@ class DataManager():
                 counters[2] += 1
         #print(counters)
 
+    def set_training_trips(self):
+        self.training_trips = []
+        counters = [0, 0]
+        for trip in self.all_trips:
+            year_week_weekday = trip[2:5]
+            print(year_week_weekday)
+            print(self.training_days_year_week_weekday[0])
+            if year_week_weekday in self.training_days_year_week_weekday:
+                self.training_trips.append(trip)
+                counters[0] += 1
+            else:
+                counters[1] += 1
+
+        print(counters)
 
     def query(self, query):
         client = bigquery.Client()
         query_job = client.query(query)
-
-        # Print the results.
-        for row in query_job.result():  # Waits for job to complete.
-            pass
-            #print(row)
         return query_job.result()
 
     def query_all_trips_by_user(self, userID=18340):
@@ -152,6 +165,14 @@ def return_first_column_of_query_result(query_result):
     for row in query_result:
         return_array.append(row[0])
     return return_array
+
+def convert_to_year_week_weekday(day):
+    year = (int)(day.year)
+    month = (int)(day.month)
+    day_number = (int)(day.day)
+    week = (int)(datetime.date(year, month, day_number).isocalendar()[1])
+    day_of_week = (int)(day.weekday())
+    return [year, week, day_of_week]
 
 if __name__ == '__main__':
     data_manager = DataManager()
