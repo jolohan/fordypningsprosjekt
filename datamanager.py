@@ -4,6 +4,7 @@ import datetime
 import numpy as np
 from sklearn import preprocessing
 import random as rnd
+import csv
 
 #########################################
 # export GOOGLE_APPLICATION_CREDENTIALS=/Users/johan/PycharmProjects/Fordypningsprosjekt/'UIP students-8ffa90ab95f7.json'
@@ -43,17 +44,30 @@ class DataManager():
         self.split_days_into_training_test_vaildation()
 
     # Find all unique days in trips so they can be split into training/test
-    def query_all_unique_days_in_trips(self):
-        query_text = 'SELECT CAST(started_at AS DATE) ' \
-                     'FROM `uip-students.oslo_bysykkel_legacy.trip` T ' \
-                     'GROUP BY CAST(started_at AS DATE) ' \
-                     'LIMIT 10000'
-        print("collecting query result...")
-        query_result = self.query(query_text)
-        print("got query result")
-        #days_matrix = [self.split_date_time_object(date[0], remove_time=True) for date in query_result]
-        unique_days = return_first_column_of_query_result(query_result)
-        unique_days = np.array(unique_days)
+    def query_all_unique_days_in_trips(self, load_from_local=True):
+        unique_days = None
+        if (load_from_local):
+            with open('query_results/all_trip_dates.csv', 'rt') as csvfile:
+                spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+                days = [row[0] for row in spamreader][1:]
+                unique_days = []
+                for row in days:
+                    row_split = row.split('-')
+                    print(row_split)
+                    row_split = [(int)(cell) for cell in row_split]
+                    row = datetime.date(row_split[0], row_split[1], row_split[2])
+                    unique_days.append(row)
+        else:
+            query_text = 'SELECT CAST(started_at AS DATE) ' \
+                         'FROM `uip-students.oslo_bysykkel_legacy.trip` T ' \
+                         'GROUP BY CAST(started_at AS DATE) ' \
+                         'LIMIT 10000'
+            print("collecting query result...")
+            query_result = self.query(query_text)
+            print("got query result")
+            #days_matrix = [self.split_date_time_object(date[0], remove_time=True) for date in query_result]
+            unique_days = return_first_column_of_query_result(query_result)
+            unique_days = np.array(unique_days)
         unique_days.sort()
         for i, day in enumerate(unique_days):
             print(day)
@@ -139,7 +153,7 @@ class DataManager():
         #print(year, month, day, week, day_of_week)
         return [year, week, day_of_week]
 
-    def set_formatted_trips_by_user(self, userID=18340):
+    def set_formatted_trips_by_user(self, userID=18340, load_from_file=True):
         query_job_trips = self.query_all_trips_by_user(userID=userID)
         trips = self.format_trip_query_to_data(query_job_result=query_job_trips)
         self.all_trips = trips
@@ -173,6 +187,7 @@ def convert_to_year_week_weekday(day):
     week = (int)(datetime.date(year, month, day_number).isocalendar()[1])
     day_of_week = (int)(day.weekday())
     return [year, week, day_of_week]
+
 
 if __name__ == '__main__':
     data_manager = DataManager()
