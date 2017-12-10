@@ -18,7 +18,11 @@ if __name__ == '__main__':
 	                        test_labels=data_manager.test_labels,
 	                        validation_labels=data_manager.validation_labels)
 	trip = predictors.test_data[0]
-	best_matching_trip, best_matching_end_station = predictors.prediction_of_end_station_by_find_best_matching_trip(trip)
+	best_matching_trip, best_matching_end_station \
+		= predictors.prediction_of_label_by_best_matching_case(trip)
 	print(best_matching_trip, best_matching_end_station)
 	print(trip, predictors.test_labels[0])
+
+	predictors.run_all_test_data()
+
 	print("executed main in main.py")
