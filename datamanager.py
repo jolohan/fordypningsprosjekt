@@ -30,77 +30,18 @@ class DataManager():
 
 
 
-	def __init__(self, user_ID=None, training_size_proportion=0.8, test_size_proportion=0.1):
+	def __init__(self, user_ID, training_days, test_days, validation_days):
 		self.user_ID = user_ID
-		self.training_set_size = training_size_proportion
-		self.test_set_size = test_size_proportion
-		self.validation_set_size = 1.0-training_size_proportion-test_size_proportion
 		# Instantiates a client
 		self.bigquery_client = bigquery.Client()
+		self.training_days = [convert_to_year_week_weekday(day) for day in training_days]
+		self.test_days = [convert_to_year_week_weekday(day) for day in test_days]
+		self.validation_days = [convert_to_year_week_weekday(day) for day in validation_days]
 		self.all_trips = None
 		self.all_labels = None
 		self.all_normalized_trips = None
 		self.all_normalized_trips_without_end_station = None
 		#print("all days are to be collected")
-		self.all_days = self.query_all_unique_days_in_trips()
-		self.split_days_into_training_test_vaildation()
-
-	# Find all unique days in trips so they can be split into training/test
-	def query_all_unique_days_in_trips(self, load_from_local=True):
-		unique_days = None
-		if (load_from_local):
-			with open('query_results/all_trip_dates.csv', 'rt') as csvfile:
-				spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
-				days = [row[0] for row in spamreader][1:]
-				unique_days = []
-				for row in days:
-					row_split = row.split('-')
-					row_split = [(int)(cell) for cell in row_split]
-					row = datetime.date(row_split[0], row_split[1], row_split[2])
-					unique_days.append(row)
-		else:
-			query_text = 'SELECT CAST(started_at AS DATE) ' \
-						 'FROM `uip-students.oslo_bysykkel_legacy.trip` T ' \
-						 'GROUP BY CAST(started_at AS DATE) ' \
-						 'LIMIT 10000'
-			print("collecting query result...")
-			query_result = self.query(query_text)
-			print("got query result")
-			#days_matrix = [self.split_date_time_object(date[0], remove_time=True) for date in query_result]
-			unique_days = return_first_column_of_query_result(query_result)
-		unique_days.sort()
-		return unique_days
-
-	def split_days_into_training_test_vaildation(self):
-		#print("splitting training days")
-		self.training_days_year_week_weekday = []
-		self.test_days_year_week_weekday = []
-		self.validation_days_year_week_weekday = []
-		#self.training_days = []
-		#self.test_days = []
-		#self.validation_days = []
-		counters = [0, 0, 0]
-		for day in self.all_days:
-			number = rnd.random()
-			if (number<self.training_set_size):
-				#self.training_days.append(day)
-				self.training_days_year_week_weekday\
-					.append(convert_to_year_week_weekday(day))
-				counters[0] += 1
-			elif (number<self.training_set_size+self.test_set_size):
-				#self.test_days.append(day)
-				self.test_days_year_week_weekday.append(convert_to_year_week_weekday(day))
-				counters[1] += 1
-			else:
-				#self.validation_days.append(day)
-				self.validation_days_year_week_weekday.append(convert_to_year_week_weekday(day))
-				counters[2] += 1
-		#self.training_days = np.array(self.training_days)
-		self.training_days_year_week_weekday = np.array(self.training_days_year_week_weekday)
-		self.test_days_year_week_weekday = np.array(self.test_days_year_week_weekday)
-		self.validation_days_year_week_weekday = np.array(self.validation_days_year_week_weekday)
-		#print("Split days into sets")
-		#print("Counters: ", counters)
 
 	def query(self, query):
 		client = bigquery.Client()
@@ -124,7 +65,7 @@ class DataManager():
 			label = self.all_labels[i]
 			year_week_weekday = self.get_year_week_week_day(trip)
 			flag = False
-			for test_trip_day in self.test_days_year_week_weekday:
+			for test_trip_day in self.test_days:
 				if (compare_numpy_dates_arrays(year_week_weekday, test_trip_day)):
 					self.test_trips.append(trip)
 					self.test_labels.append(label)
@@ -132,7 +73,7 @@ class DataManager():
 					flag = True
 					break
 			if (not flag):
-				for validation_trip_day in self.validation_days_year_week_weekday:
+				for validation_trip_day in self.validation_days:
 					if (compare_numpy_dates_arrays(year_week_weekday, validation_trip_day)):
 						self.validation_trips.append(trip)
 						self.validation_labels.append(label)
@@ -144,12 +85,6 @@ class DataManager():
 					self.training_labels.append(label)
 					counters[0] += 1
 
-
-			"""if year_week_weekday in self.training_days_year_week_weekday:
-				self.training_trips.append(trip)
-				counters[0] += 1
-			else:
-				counters[1] += 1"""
 		self.training_trips = np.array(self.training_trips)
 		self.training_labels = np.array(self.training_labels)
 		self.test_trips = np.array(self.test_trips)
@@ -271,6 +206,20 @@ def convert_string_to_date(date_string):
 		date_time_numbers.append((int)(number))
 	return datetime.datetime(date_time_numbers[2], date_time_numbers[1], date_time_numbers[0],
 							 date_time_numbers[3], date_time_numbers[4], date_time_numbers[5])
+
+def convert_date_to_string(date):
+	day = date.day
+	month = date.month
+	year = date.year
+	s = ""
+	date_list = [day, month, year]
+	for number in date_list:
+		if number < 10:
+			s += "0"
+		s += str(number)
+		s += "."
+	s = s[:-1]
+	return s
 
 def compare_numpy_dates_arrays(date1, date2):
 	if (date1[0] == date2[0]):

@@ -18,14 +18,21 @@ class Predictor:
 
 	def find_best_matching_case(self, case):
 		# end_station must be same for all trip data
-		tree = spatial.KDTree(self.training_data)
-		best_case = tree.query(case)
-		distance = best_case[0]
-		best_case = best_case[1]
-		return best_case
+		if (len(self.training_data) > 1):
+			tree = spatial.KDTree(self.training_data)
+			best_case = tree.query(case)
+			distance = best_case[0]
+			best_case = best_case[1]
+			return best_case
+		elif (len(self.training_data) == 1):
+			return 0
+		else:
+			return -1
 
 	def prediction_of_label_by_best_matching_case(self, case):
 		best_case = self.find_best_matching_case(case=case)
+		if best_case == -1:
+			return -1, -1
 		best_case_label = self.training_labels[best_case]
 		return self.training_data[best_case], best_case_label
 
