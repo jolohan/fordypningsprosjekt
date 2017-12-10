@@ -30,7 +30,7 @@ class DataManager():
 
 
 
-	def __init__(self, user_ID=5701, training_size_proportion=0.8, test_size_proportion=0.1):
+	def __init__(self, user_ID=None, training_size_proportion=0.8, test_size_proportion=0.1):
 		self.user_ID = user_ID
 		self.training_set_size = training_size_proportion
 		self.test_set_size = test_size_proportion
@@ -41,7 +41,7 @@ class DataManager():
 		self.all_labels = None
 		self.all_normalized_trips = None
 		self.all_normalized_trips_without_end_station = None
-		print("all days are to be collected")
+		#print("all days are to be collected")
 		self.all_days = self.query_all_unique_days_in_trips()
 		self.split_days_into_training_test_vaildation()
 
@@ -72,7 +72,7 @@ class DataManager():
 		return unique_days
 
 	def split_days_into_training_test_vaildation(self):
-		print("splitting training days")
+		#print("splitting training days")
 		self.training_days_year_week_weekday = []
 		self.test_days_year_week_weekday = []
 		self.validation_days_year_week_weekday = []
@@ -99,8 +99,8 @@ class DataManager():
 		self.training_days_year_week_weekday = np.array(self.training_days_year_week_weekday)
 		self.test_days_year_week_weekday = np.array(self.test_days_year_week_weekday)
 		self.validation_days_year_week_weekday = np.array(self.validation_days_year_week_weekday)
-		print("Split days into sets")
-		print("Counters: ", counters)
+		#print("Split days into sets")
+		#print("Counters: ", counters)
 
 	def query(self, query):
 		client = bigquery.Client()
@@ -122,7 +122,7 @@ class DataManager():
 		counters = [0, 0, 0]
 		for i, trip in enumerate(self.all_trips):
 			label = self.all_labels[i]
-			year_week_weekday = trip[1:4]
+			year_week_weekday = self.get_year_week_week_day(trip)
 			flag = False
 			for test_trip_day in self.test_days_year_week_weekday:
 				if (compare_numpy_dates_arrays(year_week_weekday, test_trip_day)):
@@ -156,69 +156,76 @@ class DataManager():
 		self.test_labels = np.array(self.test_labels)
 		self.validation_trips = np.array(self.validation_trips)
 		self.validation_labels = np.array(self.validation_labels)
-		print("Counters: ",counters)
+		#print("Counters: ",counters)
 
 	def set_formatted_trips_by_user(self, user_ID=None, load_from_file=True):
 		if user_ID == None:
 			user_ID = self.user_ID
 		if load_from_file:
-			result_from_csv \
-				= open('data/trips_by_user/user_' + str(user_ID) + '.csv', 'r').readlines()
-			result_from_csv = [row.split(',') for row in result_from_csv]
-			result_from_query_or_csv = []
-			for row in result_from_csv:
-				formatted_row = [cell[1:-1] for cell in row]
-				formatted_row[3] = convert_string_to_date(row[3][1:-1])
-				formatted_row[4] = convert_string_to_date(row[4][1:-1])
-				result_from_query_or_csv.append(formatted_row)
+			result_from_query_or_csv = format_csv_result('data/trips_by_user/user_' + str(user_ID))
 		else:
 			result_from_query_or_csv = self.query_all_trips_by_user(userID=user_ID)
-		self.all_trips, self.all_labels \
-			= self.format_trip_query_to_data(query_job_result=result_from_query_or_csv)
+		return format_trip_query_to_data(query_job_result=result_from_query_or_csv)
 
-
-	def format_trip_query_to_data(self, query_job_result):
-		trip_data = list(query_job_result)
-		formatted_trips = []
-		labels = []
-		for trip in trip_data:
-			member_ID = trip[1]
-			if (isinstance(trip[3], int)):
-				start_station = trip[2]
-				end_station = trip[3]
-				start_time = trip[5]
-				end_time = trip[6]
-			else:
-				start_time = trip[3]
-				end_time = trip[4]
-				start_station = trip[5]
-				end_station = trip[6]
-			start_station = (int)(start_station)
-			end_station = (int)(end_station)
-
-			if end_station == None:
-				pass
-			else:
-				start_time = split_date_time_object(start_time)
-				end_time = split_date_time_object(end_time)
-				formatted_trip = [start_station]
-				formatted_trip += start_time
-				#formatted_trip.append(end_time[-1])
-				formatted_trips.append(formatted_trip)
-				labels.append(end_station)
-		formatted_trips = np.array(formatted_trips)
-		labels = np.array(labels)
-		return formatted_trips, labels
 
 	def set_normalized_trips_for_user(self):
-		self.set_formatted_trips_by_user()
+		self.all_trips, self.all_labels = self.set_formatted_trips_by_user()
 		self.all_normalized_trips = normalize_data(self.all_trips)
 		self.all_normalized_trips_without_end_station = make_copy_deep_at_coulmn_x(self.all_normalized_trips)
 		for trip in self.all_normalized_trips_without_end_station:
 			trip[1] = 0
 
+	def get_year_week_week_day(self, trip):
+		return trip[1:4]
+
 def normalize_data(data):
 	return preprocessing.scale(data)
+
+def format_csv_result(filename):
+	result_from_csv \
+		= open(filename + '.csv', 'r').readlines()
+	result_from_csv = [row.split(',') for row in result_from_csv]
+	result_from_query_or_csv = []
+	for row in result_from_csv:
+		formatted_row = [cell[1:-1] for cell in row]
+		formatted_row[3] = convert_string_to_date(row[3][1:-1])
+		formatted_row[4] = convert_string_to_date(row[4][1:-1])
+		result_from_query_or_csv.append(formatted_row)
+	return result_from_query_or_csv
+
+def format_trip_query_to_data(query_job_result):
+	trip_data = list(query_job_result)
+	formatted_trips = []
+	labels = []
+	for trip in trip_data:
+		member_ID = trip[1]
+		if (isinstance(trip[3], int)):
+			start_station = trip[2]
+			end_station = trip[3]
+			start_time = trip[5]
+			end_time = trip[6]
+		else:
+			start_time = trip[3]
+			end_time = trip[4]
+			start_station = trip[5]
+			end_station = trip[6]
+		start_station = (int)(start_station)
+		end_station = (int)(end_station)
+
+		if end_station == None:
+			pass
+		else:
+			start_time = split_date_time_object(start_time)
+			end_time = split_date_time_object(end_time)
+			formatted_trip = [start_station]
+			formatted_trip += start_time
+			#formatted_trip.append(end_time[-1])
+			formatted_trip.append((int)(member_ID))
+			formatted_trips.append(formatted_trip)
+			labels.append(end_station)
+	formatted_trips = np.array(formatted_trips)
+	labels = np.array(labels)
+	return formatted_trips, labels
 
 def make_copy_deep_at_coulmn_x(twod_numpy_array, deep_copy_index=1):
 	new_2d_array = np.copy(twod_numpy_array)

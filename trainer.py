@@ -5,7 +5,7 @@ from datamanager import DataManager
 from copy import deepcopy
 
 
-class Predictors:
+class Predictor:
 
 	def __init__(self, training_data, test_data, validation_data,
 	             training_labels, test_labels, validation_labels):
@@ -39,6 +39,7 @@ class Predictors:
 				hits_misses[0] += 1
 			else:
 				hits_misses[1] += 1
+		print("Run all test_data for single user")
 		print(hits_misses)
 
 	def get_prediction(self, case):
