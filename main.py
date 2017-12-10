@@ -7,17 +7,18 @@ from trainer import Predictors
 
 if __name__ == '__main__':
 	print("main.py main is running")
-	data_manager = DataManager()
+	data_manager = DataManager(user_ID=5701)
 	data_manager.set_normalized_trips_for_user()
+	data_manager.set_training_test_validation_trips()
 	print("run predictors")
-	predictors = Predictors(trip_data=data_manager.all_normalized_trips,
-		                        test_trip_data=data_manager.all_normalized_trips_without_end_station,
-		                        all_trips=data_manager.all_trips)
-	print(len(data_manager.all_normalized_trips))
-	print(len(data_manager.all_normalized_trips_without_end_station))
-	print(len(data_manager.all_trips))
-	data_manager.set_training_trips()
-	trip = predictors.test_trip_data[-1]
-	best_matching_trip = predictors.prediction_of_end_station_by_find_best_matching_trip(trip)
-	print(trip, best_matching_trip)
+	predictors = Predictors(training_data=data_manager.training_trips,
+	                        test_data=data_manager.test_trips,
+	                        validation_data=data_manager.validation_trips,
+	                        training_labels=data_manager.training_labels,
+	                        test_labels=data_manager.test_labels,
+	                        validation_labels=data_manager.validation_labels)
+	trip = predictors.test_data[0]
+	best_matching_trip, best_matching_end_station = predictors.prediction_of_end_station_by_find_best_matching_trip(trip)
+	print(best_matching_trip, best_matching_end_station)
+	print(trip, predictors.test_labels[0])
 	print("executed main in main.py")
