@@ -19,7 +19,7 @@ if __name__ == '__main__':
 	                        validation_labels=data_manager.validation_labels)
 	trip = predictors.test_data[0]
 	best_matching_trip, best_matching_end_station \
-		= predictors.prediction_of_label_by_best_matching_case(trip)
+		= predictors.get_prediction(case=trip)
 	print(best_matching_trip, best_matching_end_station)
 	print(trip, predictors.test_labels[0])
 

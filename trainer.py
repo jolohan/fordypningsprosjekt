@@ -24,10 +24,15 @@ class Predictors:
 		best_case = best_case[1]
 		return best_case
 
+	def prediction_of_label_by_best_matching_case(self, case):
+		best_case = self.find_best_matching_case(case=case)
+		best_case_label = self.training_labels[best_case]
+		return self.training_data[best_case], best_case_label
+
 	def run_all_test_data(self):
 		hits_misses = [0, 0]
 		for i, case in enumerate(self.test_data):
-			_, label_prediction= self.prediction_of_label_by_best_matching_case(case)
+			_, label_prediction= self.get_prediction(case=case)
 			correct_label = self.test_labels[i]
 			print(label_prediction, correct_label)
 			if label_prediction == correct_label:
@@ -36,7 +41,5 @@ class Predictors:
 				hits_misses[1] += 1
 		print(hits_misses)
 
-	def prediction_of_label_by_best_matching_case(self, case):
-		best_case = self.find_best_matching_case(case=case)
-		best_case_label = self.training_labels[best_case]
-		return self.training_data[best_case], best_case_label
+	def get_prediction(self, case):
+		return self.prediction_of_label_by_best_matching_case(case=case)
