@@ -10,10 +10,13 @@ class Simulator():
 	def __init__(self):
 		self.predictors = {}
 		users = get_all_users()
-		self.connect_all_users_to_predictors(users[0:1000])
+		percentage_of_users = (int)(len(users)*0.001)
+		self.connect_all_users_to_predictors(users=users[:percentage_of_users])
 
 	def connect_all_users_to_predictors(self, users):
-		for user in users:
+		for i, user in enumerate(users):
+			if (i%100 == 0):
+				print(i, "/", len(users))
 			self.connect_single_user_to_predictor(user_ID=user)
 
 	def connect_single_user_to_predictor(self, user_ID):
@@ -28,7 +31,7 @@ class Simulator():
 		                      validation_labels=data_manager.validation_labels)
 		self.predictors[(int)(user_ID)] = predictor
 
-	def load_day(self, day='01.05.2016'):
+	def load_day(self, day):
 		path = 'data/trips_by_day/day_'
 		formatted_csv_result = datamanager.format_csv_result(filename=(path+day))
 		data, labels = datamanager.format_trip_query_to_data(formatted_csv_result)
