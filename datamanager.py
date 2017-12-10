@@ -203,7 +203,7 @@ class DataManager():
 				end_time = split_date_time_object(end_time)
 				formatted_trip = [start_station]
 				formatted_trip += start_time
-				formatted_trip.append(end_time[-1])
+				#formatted_trip.append(end_time[-1])
 				formatted_trips.append(formatted_trip)
 				labels.append(end_station)
 		formatted_trips = np.array(formatted_trips)
