@@ -2,3 +2,4 @@ TrainingSize 0.8
 TestSize 0.1
 FractionOfUsers 0.001
 Predictor BestMatchingCase
+NormalizeData False

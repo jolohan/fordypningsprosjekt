@@ -1,12 +1,5 @@
 
 
-
-
-
-
-
-
-
 class ExtractConfig():
 
 	def __init__(self, which_config='test_1'):
@@ -26,3 +19,4 @@ class ExtractConfig():
 		self.test_size = (float)(self.parameters['TestSize'][0])
 		self.fraction_of_users = (float)(self.parameters['FractionOfUsers'][0])
 		self.predictor_func = self.parameters['Predictor'][0]
+		self.normalize_data = (self.parameters['NormalizeData'][0] == 'True')

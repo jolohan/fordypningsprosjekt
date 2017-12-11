@@ -34,15 +34,18 @@ class Predictor:
 		best_case = self.find_best_matching_case(case=case)
 		if best_case == -1:
 			return -1, -1
-		best_case_label = self.training_labels[best_case]
-		return self.training_data[best_case], best_case_label
+		else:
+			#print(len(self.training_data), len(self.test_data), len(self.validation_data))
+			best_case_label = self.training_labels[best_case]
+			#print(self.training_data[best_case]-case)
+			return self.training_data[best_case], best_case_label
 
 	def run_all_test_data(self):
 		hits_misses = [0, 0]
 		for i, case in enumerate(self.test_data):
 			_, label_prediction= self.get_prediction(case=case)
 			correct_label = self.test_labels[i]
-			print(label_prediction, correct_label)
+			#print(label_prediction, correct_label)
 			if label_prediction == correct_label:
 				hits_misses[0] += 1
 			else:

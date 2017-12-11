@@ -1,25 +1,4 @@
 
-def write_all_trips_by_day_by_year(year=2016) -> object:
-	csvfile = open( 'data/trips_' + str(year) +'.csv', 'r').readlines()
-	filename = None
-	old_date = csvfile[1].split(",")[3][1:11]
-	rows_to_save = []
-	for i, row in enumerate(csvfile):
-		if (i == 0):
-			continue
-		new_date = row.split(",")[3][1:11]
-		if (new_date != old_date):
-			#print(new_date)
-			# 03.04.2017
-			# filename = old_date[6:]
-			# filename += old_date[2:6]
-			# filename += old_date[:2]
-			filename = old_date
-			open('data/trips_by_day/trips_' + str(filename) + '.csv', 'w+').writelines(rows_to_save)
-			rows_to_save = []
-		rows_to_save.append(row)
-
-		old_date = new_date
 
 days = {}
 

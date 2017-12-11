@@ -28,19 +28,18 @@ query1 = 'SELECT COUNT(DISTINCT (ID)) as trips FROM `uip-students.oslo_bysykkel_
 
 class DataManager():
 
-
-
-	def __init__(self, user_ID, training_days, test_days, validation_days):
+	def __init__(self, user_ID, training_days, test_days, validation_days, normalize_data,
+	             station_coordinates):
 		self.user_ID = user_ID
 		# Instantiates a client
 		self.bigquery_client = bigquery.Client()
 		self.training_days = [convert_to_year_week_weekday(day) for day in training_days]
 		self.test_days = [convert_to_year_week_weekday(day) for day in test_days]
 		self.validation_days = [convert_to_year_week_weekday(day) for day in validation_days]
+		self.normalize_data = normalize_data
+		self.station_coordinates = station_coordinates
 		self.all_trips = None
 		self.all_labels = None
-		self.all_normalized_trips = None
-		self.all_normalized_trips_without_end_station = None
 		#print("all days are to be collected")
 
 	def query(self, query):
@@ -54,43 +53,48 @@ class DataManager():
 		return self.query(query_text)
 
 	def set_training_test_validation_trips(self):
-		self.training_trips = []
-		self.test_trips = []
-		self.validation_trips = []
-		self.training_labels = []
-		self.test_labels = []
-		self.validation_labels = []
+		self.set_formatted_trips_by_user()
+		training_trips = []
+		test_trips = []
+		validation_trips = []
+		training_labels = []
+		test_labels = []
+		validation_labels = []
 		counters = [0, 0, 0]
 		for i, trip in enumerate(self.all_trips):
 			label = self.all_labels[i]
 			year_week_weekday = self.get_year_week_week_day(trip)
 			flag = False
-			for test_trip_day in self.test_days:
-				if (compare_numpy_dates_arrays(year_week_weekday, test_trip_day)):
-					self.test_trips.append(trip)
-					self.test_labels.append(label)
+			for test_day in self.test_days:
+				if (compare_numpy_dates_arrays(year_week_weekday, test_day)):
+					test_trips.append(trip)
+					test_labels.append(label)
 					counters[1] += 1
 					flag = True
 					break
 			if (not flag):
-				for validation_trip_day in self.validation_days:
-					if (compare_numpy_dates_arrays(year_week_weekday, validation_trip_day)):
-						self.validation_trips.append(trip)
-						self.validation_labels.append(label)
+				for validation_day in self.validation_days:
+					if (compare_numpy_dates_arrays(year_week_weekday, validation_day)):
+						validation_trips.append(trip)
+						validation_labels.append(label)
 						counters[2] += 1
 						flag = True
 						break
 				if (not flag):
-					self.training_trips.append(trip)
-					self.training_labels.append(label)
+					training_trips.append(trip)
+					training_labels.append(label)
 					counters[0] += 1
 
-		self.training_trips = np.array(self.training_trips)
-		self.training_labels = np.array(self.training_labels)
-		self.test_trips = np.array(self.test_trips)
-		self.test_labels = np.array(self.test_labels)
-		self.validation_trips = np.array(self.validation_trips)
-		self.validation_labels = np.array(self.validation_labels)
+		self.training_trips = np.array(training_trips)
+		self.training_labels = np.array(training_labels)
+		self.test_trips = np.array(test_trips)
+		self.test_labels = np.array(test_labels)
+		self.validation_trips = np.array(validation_trips)
+		self.validation_labels = np.array(validation_labels)
+		if self.normalize_data:
+			self.training_trips = normalize_data(self.training_trips)
+			self.test_trips = normalize_data(self.test_trips)
+			self.validation_trips = normalize_data(self.validation_trips)
 		#print("Counters: ",counters)
 
 	def set_formatted_trips_by_user(self, user_ID=None, load_from_file=True):
@@ -100,21 +104,20 @@ class DataManager():
 			result_from_query_or_csv = format_csv_result('data/trips_by_user/user_' + str(user_ID))
 		else:
 			result_from_query_or_csv = self.query_all_trips_by_user(userID=user_ID)
-		return format_trip_query_to_data(query_job_result=result_from_query_or_csv)
-
-
-	def set_normalized_trips_for_user(self):
-		self.all_trips, self.all_labels = self.set_formatted_trips_by_user()
-		self.all_normalized_trips = normalize_data(self.all_trips)
-		self.all_normalized_trips_without_end_station = make_copy_deep_at_coulmn_x(self.all_normalized_trips)
-		for trip in self.all_normalized_trips_without_end_station:
-			trip[1] = 0
+		self.all_trips, self.all_labels = format_trip_query_to_data(query_job_result=result_from_query_or_csv,
+		                                                            station_coordinates=self.station_coordinates)
 
 	def get_year_week_week_day(self, trip):
-		return trip[1:4]
+		return trip[2:5]
+
+
+# =====================
+# == Diverse methods ==
+# =====================
 
 def normalize_data(data):
-	return preprocessing.scale(data)
+	if (len(data) > 0): return preprocessing.scale(data)
+	else: return None
 
 def format_csv_result(filename):
 	result_from_csv \
@@ -128,7 +131,7 @@ def format_csv_result(filename):
 		result_from_query_or_csv.append(formatted_row)
 	return result_from_query_or_csv
 
-def format_trip_query_to_data(query_job_result):
+def format_trip_query_to_data(query_job_result, station_coordinates):
 	trip_data = list(query_job_result)
 	formatted_trips = []
 	labels = []
@@ -147,12 +150,14 @@ def format_trip_query_to_data(query_job_result):
 		start_station = (int)(start_station)
 		end_station = (int)(end_station)
 
-		if end_station == None:
+		if (end_station == None or (not (start_station in station_coordinates.keys()))):
+			print(end_station)
+			print(start_station)
 			pass
 		else:
 			start_time = split_date_time_object(start_time)
 			end_time = split_date_time_object(end_time)
-			formatted_trip = [start_station]
+			formatted_trip = [value for value in station_coordinates[start_station]]
 			formatted_trip += start_time
 			#formatted_trip.append(end_time[-1])
 			formatted_trip.append((int)(member_ID))
@@ -227,8 +232,3 @@ def compare_numpy_dates_arrays(date1, date2):
 			if (date1[2] == date2[2]):
 				return True
 	return False
-
-
-if __name__ == '__main__':
-	data_manager = DataManager()
-	trips = data_manager.set_normalized_trips_for_user()
