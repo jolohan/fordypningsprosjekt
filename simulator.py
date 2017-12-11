@@ -1,4 +1,5 @@
 from trainer import Predictor
+from extract_config import ExtractConfig
 import datamanager
 from os import listdir
 from os.path import isfile, join
@@ -11,12 +12,15 @@ class Simulator():
 
 
 
-	def __init__(self, training_size_proportion=0.8, test_size_proportion=0.1):
+	def __init__(self, training_size_proportion=0.8, test_size_proportion=0.1,
+	             fraction_of_users=1.0, predictor_func='best_matching_case'):
 		self.predictors = {}
 		self.users = get_all_users()
 		self.training_size_proportion = training_size_proportion
 		self.test_size_proportion = test_size_proportion
 		self.validation_size_proportion = 1.0 - training_size_proportion - test_size_proportion
+		self.fraction_of_users = fraction_of_users
+		self.predictor_func = predictor_func
 
 	def connect_all_users_to_predictors(self, users):
 		for i, user in enumerate(users):
@@ -36,7 +40,8 @@ class Simulator():
 		                      validation_data=data_manager.validation_trips,
 		                      training_labels=data_manager.training_labels,
 		                      test_labels=data_manager.test_labels,
-		                      validation_labels=data_manager.validation_labels)
+		                      validation_labels=data_manager.validation_labels,
+		                      predictor_func=self.predictor_func)
 		self.predictors[(int)(user_ID)] = predictor
 
 	def load_day(self, day):
@@ -126,7 +131,7 @@ class Simulator():
 
 	def run(self):
 		self.split_days_into_training_test_vaildation()
-		percentage_of_users = (int)(len(self.users) * 0.001)
+		percentage_of_users = (int)(len(self.users) * self.fraction_of_users)
 		self.connect_all_users_to_predictors(users=self.users[:percentage_of_users])
 		test_day = self.test_days[(int)(len(self.test_days)/3)]
 		self.simulate_day(test_day)
@@ -135,7 +140,3 @@ def get_all_users():
 	mypath = 'data/trips_by_user/'
 	onlyfiles = [f.split('_')[1].split('.')[0] for f in listdir(mypath) if isfile(join(mypath, f))]
 	return onlyfiles[1:]
-
-if __name__ == '__main__':
-	simulator = Simulator()
-	simulator.run()

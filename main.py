@@ -1,11 +1,36 @@
 from datamanager import DataManager
 from trainer import Predictor
+from extract_config import ExtractConfig
+from simulator import Simulator
 
 #########################################
 # export GOOGLE_APPLICATION_CREDENTIALS=/Users/johan/PycharmProjects/Fordypningsprosjekt/'UIP students-8ffa90ab95f7.json'
 #########################################
 
 if __name__ == '__main__':
+	extracted_config = ExtractConfig()
+	simulator = Simulator(training_size_proportion=extracted_config.training_size,
+	                      test_size_proportion=extracted_config.test_size,
+	                      fraction_of_users=extracted_config.fraction_of_users,
+	                      predictor_func=extracted_config.predictor_func)
+	simulator.run()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def old_main():
 	print("main.py main is running")
 	data_manager = DataManager(user_ID=5701)
 	data_manager.set_normalized_trips_for_user()

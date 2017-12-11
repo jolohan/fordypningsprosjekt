@@ -8,13 +8,14 @@ from copy import deepcopy
 class Predictor:
 
 	def __init__(self, training_data, test_data, validation_data,
-	             training_labels, test_labels, validation_labels):
+	             training_labels, test_labels, validation_labels, predictor_func):
 		self.training_data = training_data
 		self.test_data = test_data
 		self.validation_data = validation_data
 		self.training_labels = training_labels
 		self.test_labels = test_labels
 		self.validation_labels = validation_labels
+		self.predictor_func = predictor_func
 
 	def find_best_matching_case(self, case):
 		# end_station must be same for all trip data
@@ -50,4 +51,8 @@ class Predictor:
 		print(hits_misses)
 
 	def get_prediction(self, case):
-		return self.prediction_of_label_by_best_matching_case(case=case)
+		if self.predictor_func == "BestMatchingCase":
+			return self.prediction_of_label_by_best_matching_case(case=case)
+		else:
+			print("Didn't recognize predictor function: "+self.predictor_func)
+			return self.prediction_of_label_by_best_matching_case(case=case)
