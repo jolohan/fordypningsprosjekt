@@ -205,16 +205,17 @@ def convert_to_year_week_weekday(day):
 	day_of_week = (int)(day.weekday())
 	return [year, week, day_of_week]
 
-def convert_string_to_date(date_string):
+def convert_string_to_date(date_string, delimiter='.', year_index=2, month_index=1, day_index=0):
 	date_time_numbers = []
 	date_time_split = date_string.split(" ")
-	date_split = date_time_split[0].split(".")
+	date_split = date_time_split[0].split(delimiter)
 	for number in date_split:
 		date_time_numbers.append((int)(number))
 	time_split = date_time_split[1].split(":")
 	for number in time_split:
 		date_time_numbers.append((int)(number))
-	return datetime.datetime(date_time_numbers[2], date_time_numbers[1], date_time_numbers[0],
+	return datetime.datetime(date_time_numbers[year_index], date_time_numbers[month_index],
+	                         date_time_numbers[day_index],
 							 date_time_numbers[3], date_time_numbers[4], date_time_numbers[5])
 
 def convert_date_to_string(date):
@@ -230,6 +231,11 @@ def convert_date_to_string(date):
 		s += "."
 	s = s[:-1]
 	return s
+
+def convert_date_to_string_year_month_day(date):
+	s = convert_date_to_string(date)
+	new_s = s[-4:] + '.' + s[-7:-5] + '.' + s[:2]
+	return new_s
 
 def compare_numpy_dates_arrays(date1, date2):
 	if (date1[0] == date2[0]):

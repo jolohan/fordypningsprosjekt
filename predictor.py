@@ -72,4 +72,6 @@ class Predictor:
 				case=case, station_status=station_status)
 
 def get_available_slots(station_status, station_number):
-	return station_status[station_number][1]
+	if (station_number in station_status.keys()):
+		return station_status[station_number][1]
+	else: return 0

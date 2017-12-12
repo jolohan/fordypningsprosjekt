@@ -50,12 +50,9 @@ class Simulator():
 		self.predictors[(int)(user_ID)] = predictor
 
 	def load_day(self, day):
-		if day.year == 2016:
-			station_status = None
-		else:
-			station_status = {}
-			for station_number in self.station_coordinates:
-				station_status[station_number] = [0, 0]
+		station_status = {}
+		for station_number in self.station_coordinates:
+			station_status[station_number] = [0, 0]
 		path = 'data/trips_by_day/day_'
 		day_string = datamanager.convert_date_to_string(day)
 		formatted_csv_result = datamanager.format_csv_result(filename=(path + day_string))
@@ -87,12 +84,10 @@ class Simulator():
 	def test(self):
 		print('Loading test days')
 		hits_misses_nonguess = [0, 0, 0]
+		self.last_time_updated = -1
 		for day in self.test_days:
 			data, labels, self.station_status = self.load_day(day=day)
-			if (self.station_status == None):
-				pass
-			else:
-				self.station_status_updates = load_station_status_updates(day=day)
+			self.station_status_updates = load_station_status_updates(day=day)
 			for i, data_point in enumerate(data):
 				correct_label = labels[i]
 				pred_label = self.get_prediction(data_point=data_point)
@@ -111,9 +106,7 @@ class Simulator():
 
 	def get_prediction(self, data_point):
 		# update station status
-		self.last_time_updated = -1
-		if (self.station_status != None):
-			self.last_time_updated = self.update_station_status(data_point)
+		self.last_time_updated = self.update_station_status(data_point)
 		# if we can get user prediction:
 		user_ID = data_point[-1]
 		# print(user_ID, self.predictors.keys())
@@ -234,24 +227,25 @@ def load_all_users():
 
 
 def load_station_status_updates(day):
-	if day.year == 2017:
-		updates = {}
-		path = 'data/station_status_2017/station_status_'
-		filename = path + datamanager.convert_date_to_string(day) + '.csv'
-		with open(filename, 'r') as file:
-			rows = file.readlines()
-			for row in rows:
-				row_split = [cell[1:-1] for cell in row.split(',')]
-				date_string = row_split[0]
-				date = datamanager.convert_string_to_date(date_string)
-				minutes_after_midnight = date.hour * 60 + date.minute
-				station_number = (int)(row_split[1])
-				available_bikes = (int)(row_split[3])
-				available_slots = (int)(row_split[4])
-				if minutes_after_midnight not in updates.keys():
-					updates[minutes_after_midnight] = []
-				info = [station_number, available_slots, available_bikes]
-				updates[minutes_after_midnight].append(info)
-		return updates
-	else:
-		return None
+	updates = {}
+	path = 'data/station_availability/day_'
+	filename = path + datamanager.convert_date_to_string_year_month_day(day) + '.csv'
+	with open(filename, 'r') as file:
+		rows = file.readlines()
+		for row in rows:
+			row_split = row.split(',')
+			date_string = row_split[6]
+			date = datamanager.convert_string_to_date(date_string, delimiter='-', year_index=0, day_index=2)
+			minutes_after_midnight = date.hour * 60 + date.minute
+			station_number = (int)(row_split[7])
+			online = (row_split[1] == 'true')
+			if (online):
+				available_bikes = (int)(row_split[4])
+				available_slots = (int)(row_split[5])
+			else:
+				available_bikes, available_slots = 0, 0
+			if minutes_after_midnight not in updates.keys():
+				updates[minutes_after_midnight] = []
+			info = [station_number, available_slots, available_bikes]
+			updates[minutes_after_midnight].append(info)
+	return updates
