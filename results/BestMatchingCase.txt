@@ -1,0 +1,11 @@
+
+=======================================================
+TrainingSize 0.8
+TestSize 0.01
+FractionOfUsers 0.001
+NormalizeData True
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 11, 132, 102298
+HitPercentage 0.07692307692307693
+=======================================================

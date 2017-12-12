@@ -99,10 +99,12 @@ class Simulator():
 					hits_misses_nonguess[1] += 1
 		print("Hits vs misses:", hits_misses_nonguess)
 		total_guesses = 1.0 * (hits_misses_nonguess[0] + hits_misses_nonguess[1])
+		hit_percentage = hits_misses_nonguess[0] / (total_guesses)
 		if total_guesses != 0:
-			print("Hit percentage: " + str((hits_misses_nonguess[0] / (total_guesses))))
+			print("Hit percentage: " + str(hit_percentage))
 		else:
 			print("Didn't guess any")
+		return hits_misses_nonguess, hit_percentage
 
 	def get_prediction(self, data_point):
 		# update station status
@@ -189,8 +191,11 @@ class Simulator():
 		self.connect_all_users_to_predictors(users=self.users[:percentage_of_users])
 		# test_day = self.test_days[(int)(len(self.test_days)/3)]
 		# self.simulate_day(test_day)
-		self.test()
-
+		hits_misses_nonguesses, hit_percentage = self.test()
+		write_results_to_file(simulator=self,
+		                      hits_misses_nonguesses=hits_misses_nonguesses,
+		                      hit_percentage=hit_percentage
+		                      )
 
 def get_minutes_after_midnight(data_point):
 	return (data_point[4])
@@ -249,3 +254,28 @@ def load_station_status_updates(day):
 			info = [station_number, available_slots, available_bikes]
 			updates[minutes_after_midnight].append(info)
 	return updates
+
+def write_results_to_file(simulator, hits_misses_nonguesses, hit_percentage):
+	filename = simulator.predictor_func
+	path = "results/"
+	total_filename = path+filename+'.txt'
+	if not (isfile(total_filename)):
+		try:
+			file = open(total_filename, 'r')
+		except IOError:
+			file = open(total_filename, 'w')
+	with open(total_filename, 'a') as f:
+		text = "\n======================================================="
+		text += '\nTrainingSize ' + str(simulator.training_size_proportion)
+		text += '\nTestSize ' + str(simulator.test_size_proportion)
+		text += '\nFractionOfUsers ' + str(simulator.fraction_of_users)
+		text += '\nNormalizeData ' + str(simulator.normalize_data)
+		text += '\nCutOffPointDataAmount ' + str(simulator.cut_off_point_data_amount)
+		text += "\n"
+		text += '\nHitsMissesNonguesses '
+		for value in hits_misses_nonguesses:
+			text += str(value) + ", "
+		text = text[:-2]
+		text += '\nHitPercentage ' + str(hit_percentage)
+		text += "\n======================================================="
+		f.write(text)

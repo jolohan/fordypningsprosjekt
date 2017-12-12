@@ -27,10 +27,16 @@ class Predictor:
 					if (get_available_slots(station_status, station_number) == 0):
 						stations_that_have_capacity.append(data_point)
 						stations_that_have_capacity_labels.append(station_number)
+				original_tree = spatial.KDTree(self.training_data)
+				original_choice = original_tree.query(case)
+				tree = spatial.KDTree(stations_that_have_capacity)
+				best_case = tree.query(case)
+				if (best_case != original_choice):
+					print(best_case, original_choice)
 			else:
 				stations_that_have_capacity = self.training_data
-			tree = spatial.KDTree(stations_that_have_capacity)
-			best_case = tree.query(case)
+				tree = spatial.KDTree(stations_that_have_capacity)
+				best_case = tree.query(case)
 			distance = best_case[0]
 			best_case = best_case[1]
 			return best_case
