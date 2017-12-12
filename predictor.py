@@ -4,7 +4,6 @@ from scipy import spatial
 from datamanager import DataManager
 from copy import deepcopy
 
-
 class Predictor:
 
 	def __init__(self, training_data, test_data, validation_data,
@@ -17,21 +16,31 @@ class Predictor:
 		self.validation_labels = validation_labels
 		self.predictor_func = predictor_func
 
-	def find_best_matching_case(self, case):
+	def find_best_matching_case(self, case, station_status):
 		# end_station must be same for all trip data
-		if (len(self.training_data) > 1):
-			tree = spatial.KDTree(self.training_data)
+		if len(self.training_data) > 1:
+			if station_status != None:
+				stations_that_have_capacity = []
+				stations_that_have_capacity_labels = []
+				for i, data_point in enumerate(self.training_data):
+					station_number = self.training_labels[i]
+					if (get_available_slots(station_status, station_number) == 0):
+						stations_that_have_capacity.append(data_point)
+						stations_that_have_capacity_labels.append(station_number)
+			else:
+				stations_that_have_capacity = self.training_data
+			tree = spatial.KDTree(stations_that_have_capacity)
 			best_case = tree.query(case)
 			distance = best_case[0]
 			best_case = best_case[1]
 			return best_case
-		elif (len(self.training_data) == 1):
+		elif len(self.training_data) == 1:
 			return 0
 		else:
 			return -1
 
-	def prediction_of_label_by_best_matching_case(self, case):
-		best_case = self.find_best_matching_case(case=case)
+	def prediction_of_label_by_best_matching_case(self, case, station_status):
+		best_case = self.find_best_matching_case(case=case, station_status=station_status)
 		if best_case == -1:
 			return -1, -1
 		else:
@@ -53,9 +62,14 @@ class Predictor:
 		print("Run all test_data for single user")
 		print(hits_misses)
 
-	def get_prediction(self, case):
+	def get_prediction(self, case, station_status):
 		if self.predictor_func == "BestMatchingCase":
-			return self.prediction_of_label_by_best_matching_case(case=case)
+			return self.prediction_of_label_by_best_matching_case(
+				case=case, station_status=station_status)
 		else:
 			print("Didn't recognize predictor function: "+self.predictor_func)
-			return self.prediction_of_label_by_best_matching_case(case=case)
+			return self.prediction_of_label_by_best_matching_case(
+				case=case, station_status=station_status)
+
+def get_available_slots(station_status, station_number):
+	return station_status[station_number][1]

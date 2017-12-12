@@ -1,5 +1,6 @@
 TrainingSize 0.8
-TestSize 0.1
-FractionOfUsers 0.001
+TestSize 0.01
+FractionOfUsers 0.1
 Predictor BestMatchingCase
 NormalizeData False
+CutOffPointDataAmount 10

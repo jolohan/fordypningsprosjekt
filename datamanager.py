@@ -52,8 +52,10 @@ class DataManager():
 				'WHERE member_id = ' + str(userID)
 		return self.query(query_text)
 
-	def set_training_test_validation_trips(self):
+	def set_training_test_validation_trips(self, cut_off_point_data_amount=0):
 		self.set_formatted_trips_by_user()
+		if (len(self.all_trips) < cut_off_point_data_amount):
+			return False
 		training_trips = []
 		test_trips = []
 		validation_trips = []
@@ -85,6 +87,8 @@ class DataManager():
 					training_labels.append(label)
 					counters[0] += 1
 
+		if (len(training_trips) < 1 or len(test_trips) + len(validation_trips) < 1):
+			return False
 		self.training_trips = np.array(training_trips)
 		self.training_labels = np.array(training_labels)
 		self.test_trips = np.array(test_trips)
@@ -95,7 +99,8 @@ class DataManager():
 			self.training_trips = normalize_data(self.training_trips)
 			self.test_trips = normalize_data(self.test_trips)
 			self.validation_trips = normalize_data(self.validation_trips)
-		#print("Counters: ",counters)
+
+		return True
 
 	def set_formatted_trips_by_user(self, user_ID=None, load_from_file=True):
 		if user_ID == None:
