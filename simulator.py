@@ -13,7 +13,7 @@ import utm
 class Simulator():
 	def __init__(self, training_size_proportion=0.8, test_size_proportion=0.1,
 	             fraction_of_users=1.0, predictor_func='best_matching_case',
-	             normalize_data=True, cut_off_point_data_amount=10):
+	             normalize_data=True, cut_off_point_data_amount=10, closeness_cutoff=99999999):
 		self.predictors = {}
 		self.users = load_all_users()
 		self.training_size_proportion = training_size_proportion
@@ -23,6 +23,7 @@ class Simulator():
 		self.predictor_func = predictor_func
 		self.normalize_data = normalize_data
 		self.cut_off_point_data_amount = cut_off_point_data_amount
+		self.closeness_cutoff = closeness_cutoff
 		self.station_coordinates = load_all_station_coordinates()
 
 	def connect_all_users_to_predictors(self, users):
@@ -46,13 +47,16 @@ class Simulator():
 		                      training_labels=data_manager.training_labels,
 		                      test_labels=data_manager.test_labels,
 		                      validation_labels=data_manager.validation_labels,
-		                      predictor_func=self.predictor_func)
-		self.predictors[(int)(user_ID)] = predictor
+		                      predictor_func=self.predictor_func,
+		                      closeness_cutoff=self.closeness_cutoff)
+		made_predictor = predictor.GRBT()
+		if made_predictor:
+			self.predictors[(int)(user_ID)] = predictor
 
 	def load_day(self, day):
 		station_status = {}
 		for station_number in self.station_coordinates:
-			station_status[station_number] = [0, 0]
+			station_status[station_number] = 999999
 		path = 'data/trips_by_day/day_'
 		day_string = datamanager.convert_date_to_string(day)
 		formatted_csv_result = datamanager.format_csv_result(filename=(path + day_string))
@@ -96,12 +100,17 @@ class Simulator():
 				elif (correct_label == pred_label):
 					hits_misses_nonguess[0] += 1
 				else:
+					if (self.station_status[correct_label] == 0 or self.station_status[pred_label] == 0):
+						print("predicted:", pred_label, '   correct:', correct_label,
+						      '\nstatus predicted:', self.station_status[pred_label],
+						      'status correct:', self.station_status[correct_label])
 					hits_misses_nonguess[1] += 1
 		print("Hits vs misses:", hits_misses_nonguess)
 		total_guesses = 1.0 * (hits_misses_nonguess[0] + hits_misses_nonguess[1])
+		total_guesses += 0.001
 		hit_percentage = hits_misses_nonguess[0] / (total_guesses)
 		if total_guesses != 0:
-			print("Hit percentage: " + str(hit_percentage))
+			print("Hit percentage: %.4f" % hit_percentage)
 		else:
 			print("Didn't guess any")
 		return hits_misses_nonguess, hit_percentage
@@ -120,13 +129,18 @@ class Simulator():
 		return -1
 
 	def update_station_status(self, data_point):
-		new_time = (int)(get_minutes_after_midnight(data_point))
+		new_time = get_minutes_after_midnight_normalized(data_point)
 		if (new_time != self.last_time_updated):
-			if new_time in self.station_status_updates.keys():
-				updates = self.station_status_updates[new_time]
+			if self.last_time_updated in self.station_status_updates.keys():
+				updates = self.station_status_updates[self.last_time_updated]
 				for update in updates:
-					station_number = update[0]
-					self.station_status[station_number] = update[1:]
+					#station_number = update[0]
+					self.station_status[update[0]] = update[1]
+			"""for station in self.station_status.keys():
+				available_slots = self.station_status[station][0]
+				if available_slots != 0:
+					print(station, self.station_status[station])
+			"""
 		return new_time
 
 	# Find all unique days in trips so they can be split into training/test
@@ -197,8 +211,8 @@ class Simulator():
 		                      hit_percentage=hit_percentage
 		                      )
 
-def get_minutes_after_midnight(data_point):
-	return (data_point[4])
+def get_minutes_after_midnight_normalized(data_point):
+	return (data_point[-2])
 
 
 def load_all_station_coordinates():
@@ -251,7 +265,7 @@ def load_station_status_updates(day):
 				available_bikes, available_slots = 0, 0
 			if minutes_after_midnight not in updates.keys():
 				updates[minutes_after_midnight] = []
-			info = [station_number, available_slots, available_bikes]
+			info = [station_number, available_slots]
 			updates[minutes_after_midnight].append(info)
 	return updates
 
@@ -265,7 +279,7 @@ def write_results_to_file(simulator, hits_misses_nonguesses, hit_percentage):
 		except IOError:
 			file = open(total_filename, 'w')
 	with open(total_filename, 'a') as f:
-		text = "\n======================================================="
+		text = "======================================================="
 		text += '\nTrainingSize ' + str(simulator.training_size_proportion)
 		text += '\nTestSize ' + str(simulator.test_size_proportion)
 		text += '\nFractionOfUsers ' + str(simulator.fraction_of_users)
@@ -277,5 +291,5 @@ def write_results_to_file(simulator, hits_misses_nonguesses, hit_percentage):
 			text += str(value) + ", "
 		text = text[:-2]
 		text += '\nHitPercentage ' + str(hit_percentage)
-		text += "\n======================================================="
+		text += "\n"
 		f.write(text)

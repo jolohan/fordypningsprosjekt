@@ -1,0 +1,36 @@
+=======================================================
+TrainingSize 0.8
+TestSize 0.01
+FractionOfUsers 0.001
+NormalizeData True
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 0, 0, 24174
+HitPercentage 0.0
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData False
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 186, 415, 421562
+HitPercentage 0.30948367806376365
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData True
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 36, 510, 423240
+HitPercentage 0.06593394517592459
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData True
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 44, 439, 322253
+HitPercentage 0.09109711988173938
