@@ -8,12 +8,14 @@ import csv
 import datetime
 import numpy as np
 import utm
+import graphics
 
 
 class Simulator():
 	def __init__(self, training_size_proportion=0.8, test_size_proportion=0.1,
 	             fraction_of_users=1.0, predictor_func='best_matching_case',
-	             normalize_data=True, cut_off_point_data_amount=10, closeness_cutoff=99999999):
+	             normalize_data=True, cut_off_point_data_amount=10, closeness_cutoff=99999999,
+	             error_threshold=0.1):
 		self.predictors = {}
 		self.users = load_all_users()
 		self.training_size_proportion = training_size_proportion
@@ -25,6 +27,7 @@ class Simulator():
 		self.cut_off_point_data_amount = cut_off_point_data_amount
 		self.closeness_cutoff = closeness_cutoff
 		self.station_coordinates = load_all_station_coordinates()
+		self.error_threshold = error_threshold
 
 	def connect_all_users_to_predictors(self, users):
 		for i, user in enumerate(users):
@@ -38,9 +41,12 @@ class Simulator():
 		                                       test_days=self.test_days,
 		                                       validation_days=self.validation_days,
 		                                       normalize_data=self.normalize_data,
-		                                       station_coordinates=self.station_coordinates)
+		                                       station_coordinates=self.station_coordinates,
+		                                       cut_off_point_data_amount=self.cut_off_point_data_amount)
 		if not data_manager.set_training_test_validation_trips():
 			return
+		if len(data_manager.all_trips) < self.cut_off_point_data_amount:
+			print("Too few trips. Less than: "+self.cut_off_point_data_amount)
 		predictor = Predictor(training_data=data_manager.training_trips,
 		                      test_data=data_manager.test_trips,
 		                      validation_data=data_manager.validation_trips,
@@ -49,7 +55,7 @@ class Simulator():
 		                      validation_labels=data_manager.validation_labels,
 		                      predictor_func=self.predictor_func,
 		                      closeness_cutoff=self.closeness_cutoff)
-		made_predictor = predictor.GRBT()
+		made_predictor = predictor.train()
 		if made_predictor:
 			self.predictors[(int)(user_ID)] = predictor
 
@@ -85,7 +91,48 @@ class Simulator():
 		else:
 			print("Didn't guess any")
 
+	def test_by_user(self):
+		errors = []
+		hits_misses_nonguess = [0, 0, 0]
+		for user in self.predictors.keys():
+			predictor = self.predictors[user]
+			data = predictor.test_data
+			labels = predictor.test_labels
+			for i, data_point in enumerate(data):
+				pred_label = predictor.regression_predict(data_point)
+				if pred_label[0] == -1 and pred_label[1] == -1:
+					hits_misses_nonguess[2] += 1
+				else:
+					correct_label = labels[i]
+					error = 0.0
+					for i in range(2):
+						error += (correct_label[i] - pred_label[i]) ** 2
+					error = np.sqrt(error)
+					if error < self.error_threshold:
+						hits_misses_nonguess[0] += 1
+					else:
+						if error > 2:
+							print(error, correct_label, pred_label)
+						hits_misses_nonguess[1] += 1
+					errors.append(error)
+					"""if (self.station_status[correct_label] == 0 or self.station_status[pred_label] == 0):
+						print("predicted:", pred_label, '   correct:', correct_label,
+							  '\nstatus predicted:', self.station_status[pred_label],
+							  'status correct:', self.station_status[correct_label])"""
+		print("Hits vs misses:", hits_misses_nonguess)
+		total_guesses = 1.0 * (hits_misses_nonguess[0] + hits_misses_nonguess[1])
+		total_guesses += 0.001
+		hit_percentage = hits_misses_nonguess[0] / (total_guesses)
+		average_error = np.sum(errors) / total_guesses
+		if total_guesses != 0:
+			print("Hit percentage: %.4f" % hit_percentage)
+			print("Average error: %.3f" % average_error)
+		else:
+			print("Didn't guess any")
+		return hits_misses_nonguess, hit_percentage, average_error, errors
+
 	def test(self):
+		errors = []
 		print('Loading test days')
 		hits_misses_nonguess = [0, 0, 0]
 		self.last_time_updated = -1
@@ -93,27 +140,37 @@ class Simulator():
 			data, labels, self.station_status = self.load_day(day=day)
 			self.station_status_updates = load_station_status_updates(day=day)
 			for i, data_point in enumerate(data):
-				correct_label = labels[i]
 				pred_label = self.get_prediction(data_point=data_point)
-				if pred_label == -1:
+				if pred_label[0] == -1 and pred_label[1] == -1:
 					hits_misses_nonguess[2] += 1
-				elif (correct_label == pred_label):
-					hits_misses_nonguess[0] += 1
 				else:
-					if (self.station_status[correct_label] == 0 or self.station_status[pred_label] == 0):
+					correct_label = labels[i]
+					error = 0.0
+					for i in range(2):
+						error += (correct_label[i] - pred_label[i]) ** 2
+					error = np.sqrt(error)
+					if error < self.error_threshold:
+						hits_misses_nonguess[0] += 1
+					else:
+						if error > 2:
+							print(error, correct_label, pred_label)
+						hits_misses_nonguess[1] += 1
+					errors.append(error)
+					"""if (self.station_status[correct_label] == 0 or self.station_status[pred_label] == 0):
 						print("predicted:", pred_label, '   correct:', correct_label,
 						      '\nstatus predicted:', self.station_status[pred_label],
-						      'status correct:', self.station_status[correct_label])
-					hits_misses_nonguess[1] += 1
+						      'status correct:', self.station_status[correct_label])"""
 		print("Hits vs misses:", hits_misses_nonguess)
 		total_guesses = 1.0 * (hits_misses_nonguess[0] + hits_misses_nonguess[1])
 		total_guesses += 0.001
 		hit_percentage = hits_misses_nonguess[0] / (total_guesses)
+		average_error = np.sum(errors) / total_guesses
 		if total_guesses != 0:
 			print("Hit percentage: %.4f" % hit_percentage)
+			print("Average error: %.3f" % average_error)
 		else:
 			print("Didn't guess any")
-		return hits_misses_nonguess, hit_percentage
+		return hits_misses_nonguess, hit_percentage, average_error, errors
 
 	def get_prediction(self, data_point):
 		# update station status
@@ -122,11 +179,11 @@ class Simulator():
 		user_ID = data_point[-1]
 		# print(user_ID, self.predictors.keys())
 		if user_ID in self.predictors.keys():
-			_, pred_label = self.predictors[user_ID].get_prediction(case=data_point,
+			pred_label = self.predictors[user_ID].get_prediction(case=data_point,
 			                                                        station_status=self.station_status)
 			return pred_label
 		# else: say we dont want to guess
-		return -1
+		return [-1, -1]
 
 	def update_station_status(self, data_point):
 		new_time = get_minutes_after_midnight_normalized(data_point)
@@ -205,11 +262,13 @@ class Simulator():
 		self.connect_all_users_to_predictors(users=self.users[:percentage_of_users])
 		# test_day = self.test_days[(int)(len(self.test_days)/3)]
 		# self.simulate_day(test_day)
-		hits_misses_nonguesses, hit_percentage = self.test()
+		hits_misses_nonguesses, hit_percentage, average_error, errors = self.test_by_user()
 		write_results_to_file(simulator=self,
 		                      hits_misses_nonguesses=hits_misses_nonguesses,
-		                      hit_percentage=hit_percentage
-		                      )
+		                      hit_percentage=hit_percentage,
+		                      average_error=average_error,
+		                      error_threshold=self.error_threshold)
+		graphics.plot_histogram(data=errors, title='Error plot', xlabel='Error')
 
 def get_minutes_after_midnight_normalized(data_point):
 	return (data_point[-2])
@@ -232,6 +291,13 @@ def load_all_station_coordinates():
 			utm_coordinates = [utm_coordinate for utm_coordinate in utm.from_latlon(lat, lon)[:2]]
 			all_coordinates.append(utm_coordinates)
 	all_coordinates = np.array(all_coordinates)
+
+	print('Max utm0: '+str(max(all_coordinates[:,0])))
+	print('Min utm0: '+str(min(all_coordinates[:,0])))
+	print('Max utm1: '+str(max(all_coordinates[:,1])))
+	print('Min utm1: '+str(min(all_coordinates[:,1])))
+	print('argmax: '+str(np.argmax(all_coordinates)))
+	print('argmin: '+str(np.argmin(all_coordinates)))
 	all_coordinates = datamanager.normalize_data(all_coordinates)
 	for i, station in enumerate(all_stations):
 		utm_coordinates = all_coordinates[i]
@@ -269,7 +335,7 @@ def load_station_status_updates(day):
 			updates[minutes_after_midnight].append(info)
 	return updates
 
-def write_results_to_file(simulator, hits_misses_nonguesses, hit_percentage):
+def write_results_to_file(simulator, hits_misses_nonguesses, hit_percentage, average_error, error_threshold):
 	filename = simulator.predictor_func
 	path = "results/"
 	total_filename = path+filename+'.txt'
@@ -285,11 +351,13 @@ def write_results_to_file(simulator, hits_misses_nonguesses, hit_percentage):
 		text += '\nFractionOfUsers ' + str(simulator.fraction_of_users)
 		text += '\nNormalizeData ' + str(simulator.normalize_data)
 		text += '\nCutOffPointDataAmount ' + str(simulator.cut_off_point_data_amount)
+		text += '\nErrorThreshold ' + str(error_threshold)
 		text += "\n"
 		text += '\nHitsMissesNonguesses '
 		for value in hits_misses_nonguesses:
 			text += str(value) + ", "
 		text = text[:-2]
 		text += '\nHitPercentage ' + str(hit_percentage)
+		text += '\nAverageError ' + str(average_error)
 		text += "\n"
 		f.write(text)

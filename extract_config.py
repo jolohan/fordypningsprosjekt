@@ -21,7 +21,10 @@ class ExtractConfig():
 		self.predictor_func = self.parameters['Predictor'][0]
 		if self.predictor_func == 'BestMatchingCase':
 			self.cut_off_closeness_measure = (int)(self.parameters['Predictor'][1])
+		elif self.predictor_func[:len('Regression')] == 'Regression':
+			self.cut_off_closeness_measure = 999999999
 		else:
 			self.cut_off_closeness_measure = 999999999
 		self.normalize_data = (self.parameters['NormalizeData'][0] == 'True')
 		self.cut_off_point_data_amount = (int)(self.parameters['CutOffPointDataAmount'][0])
+		self.error_threshold = (float)(self.parameters['ErrorThreshold'][0])

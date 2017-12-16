@@ -287,3 +287,89 @@ CutOffPointDataAmount 10
 
 HitsMissesNonguesses 58, 627, 409140
 HitPercentage 0.08467140923881863
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.01
+NormalizeData False
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 1164, 2401, 482075
+HitPercentage 0.3265076222980021
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData False
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 86, 237, 329431
+HitPercentage 0.26625304565620544
+
+AverageError 0.6546282852582288
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData False
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 93, 268, 298778
+HitPercentage 0.25761701491131606
+
+AverageError 0.576975659692693
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData False
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 97, 285, 389704
+HitPercentage 0.2539260368428355
+
+AverageError 0.6238006062811369
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData False
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 78, 216, 302319
+HitPercentage 0.26530522005027196
+
+AverageError 0.6129979937155132
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData False
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 72, 172, 254448
+HitPercentage 0.29508075786574645
+
+AverageError 0.6083976405855236
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData False
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 105, 396, 506766
+HitPercentage 0.2095804199991617
+
+AverageError 0.6450658252624274
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData False
+CutOffPointDataAmount 10
+
+HitsMissesNonguesses 104, 278, 320512
+HitPercentage 0.27225059620262776
+
+AverageError 0.6238957962965703

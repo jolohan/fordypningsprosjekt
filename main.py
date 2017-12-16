@@ -14,5 +14,6 @@ if __name__ == '__main__':
 	                      fraction_of_users=extracted_config.fraction_of_users,
 	                      predictor_func=extracted_config.predictor_func,
 	                      normalize_data=extracted_config.normalize_data,
-	                      closeness_cutoff=extracted_config.cut_off_closeness_measure)
+	                      closeness_cutoff=extracted_config.cut_off_closeness_measure,
+	                      error_threshold=extracted_config.error_threshold)
 	simulator.run()

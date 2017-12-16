@@ -29,13 +29,14 @@ query1 = 'SELECT COUNT(DISTINCT (ID)) as trips FROM `uip-students.oslo_bysykkel_
 class DataManager():
 
 	def __init__(self, user_ID, training_days, test_days, validation_days, normalize_data,
-	             station_coordinates):
+	             station_coordinates, cut_off_point_data_amount=0):
 		self.user_ID = user_ID
 		# Instantiates a client
 		self.bigquery_client = bigquery.Client()
 		self.training_days = [convert_to_year_week_weekday(day) for day in training_days]
 		self.test_days = [convert_to_year_week_weekday(day) for day in test_days]
 		self.validation_days = [convert_to_year_week_weekday(day) for day in validation_days]
+		self.cut_off_point_data_amount = cut_off_point_data_amount
 		self.normalize_data = normalize_data
 		self.station_coordinates = station_coordinates
 		self.all_trips = None
@@ -52,10 +53,14 @@ class DataManager():
 				'WHERE member_id = ' + str(userID)
 		return self.query(query_text)
 
-	def set_training_test_validation_trips(self, cut_off_point_data_amount=0):
+	def set_training_test_validation_trips(self):
 		self.set_formatted_trips_by_user()
-		if (len(self.all_trips) < cut_off_point_data_amount):
+		if (len(self.all_trips) < self.cut_off_point_data_amount):
 			return False
+		# need central data storage if i am to normalize
+		training_trips_index = []
+		test_trips_index = []
+		validation_trips_index = []
 		training_trips = []
 		test_trips = []
 		validation_trips = []
@@ -69,37 +74,33 @@ class DataManager():
 			flag = False
 			for test_day in self.test_days:
 				if (compare_numpy_dates_arrays(year_week_weekday, test_day)):
-					test_trips.append(trip)
-					test_labels.append(label)
+					test_trips_index.append(i)
 					counters[1] += 1
 					flag = True
 					break
 			if (not flag):
 				for validation_day in self.validation_days:
 					if (compare_numpy_dates_arrays(year_week_weekday, validation_day)):
-						validation_trips.append(trip)
-						validation_labels.append(label)
+						validation_trips_index.append(i)
 						counters[2] += 1
 						flag = True
 						break
 				if (not flag):
-					training_trips.append(trip)
-					training_labels.append(label)
+					training_trips_index.append(i)
 					counters[0] += 1
-
-		if (len(training_trips) < 1 or len(test_trips) + len(validation_trips) < 1):
-			return False
-		self.training_trips = np.array(training_trips)
-		self.training_labels = np.array(training_labels)
-		self.test_trips = np.array(test_trips)
-		self.test_labels = np.array(test_labels)
-		self.validation_trips = np.array(validation_trips)
-		self.validation_labels = np.array(validation_labels)
 		if self.normalize_data:
-			self.training_trips = normalize_data(self.training_trips)
-			self.test_trips = normalize_data(self.test_trips)
-			self.validation_trips = normalize_data(self.validation_trips)
-
+			#print("Cant normalize data")
+			self.all_trips = normalize_data(self.all_trips)
+			#self.all_labels = normalize_data(self.all_labels)
+		if (len(training_trips_index) < 1 or
+					    len(test_trips_index) + len(validation_trips_index) < 1):
+			return False
+		self.training_trips = np.array([self.all_trips[index] for index in training_trips_index])
+		self.training_labels = np.array([self.all_labels[index] for index in training_trips_index])
+		self.test_trips = np.array([self.all_trips[index] for index in test_trips_index])
+		self.test_labels = np.array([self.all_labels[index] for index in test_trips_index])
+		self.validation_trips = np.array([self.all_trips[index] for index in validation_trips_index])
+		self.validation_labels = np.array([self.all_labels[index] for index in validation_trips_index])
 		return True
 
 	def set_formatted_trips_by_user(self, user_ID=None, load_from_file=True):
@@ -155,18 +156,28 @@ def format_trip_query_to_data(query_job_result, station_coordinates):
 		start_station = (int)(start_station)
 		end_station = (int)(end_station)
 
-		if (end_station == None or (not (start_station in station_coordinates.keys()))):
-			print(end_station)
-			print(start_station)
+		if (start_station == None or (not (start_station in station_coordinates.keys()))):
+			pass
+			#print(end_station)
+			#print(start_station)
+		elif (end_station == None or (not (end_station in station_coordinates.keys()))):
+			pass
+			#print(end_station)
+			#print(start_station)
+		elif (end_time - start_time) > (datetime.timedelta(minutes=60)):
+			#print(end_time, start_time, end_time-start_time)
 			pass
 		else:
 			start_time = split_date_time_object(start_time)
 			end_time = split_date_time_object(end_time)
-			formatted_trip = [value for value in station_coordinates[start_station]]
+			start_station = station_coordinates[start_station]
+			formatted_trip = [coordinate for coordinate in start_station]
 			formatted_trip += start_time
 			#formatted_trip.append(end_time[-1])
 			formatted_trip.append((int)(member_ID))
 			formatted_trips.append(formatted_trip)
+
+			end_station = station_coordinates[end_station]
 			labels.append(end_station)
 	formatted_trips = np.array(formatted_trips)
 	labels = np.array(labels)

@@ -1,6 +1,7 @@
 TrainingSize 0.8
 TestSize 0.1
 FractionOfUsers 0.01
-Predictor GRBT
-NormalizeData False
+Predictor RegressionLasso
+NormalizeData True
 CutOffPointDataAmount 20
+ErrorThreshold 0.1
