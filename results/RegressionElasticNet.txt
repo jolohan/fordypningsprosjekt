@@ -1,0 +1,102 @@
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 1.0
+NormalizeData False
+CutOffPointDataAmount 10
+ErrorThreshold 0.1
+
+HitsMissesNonguesses 20500, 231134, 0
+HitPercentage 0.08146752791169903
+AverageError 0.630560595062
+MeanError 0.630560597567
+=======================================================
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 1.0
+NormalizeData True
+CutOffPointDataAmount 10
+ErrorThreshold 0.1
+
+HitsMissesNonguesses 7976, 336164, 0
+HitPercentage 0.023176614101305823
+AverageError 0.699400016641
+MeanError 0.699400018673
+=======================================================
+Datetime: 2017-12-18 11:50:40.417422
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData True
+CutOffPointDataAmount 10
+ErrorThreshold 0.1
+
+HitsMissesNonguesses 19, 516, 0
+HitPercentage 0.035513952310369516
+AverageError 0.652323309586
+MeanError 0.652324528881
+=======================================================
+Datetime: 2017-12-18 11:51:31.153700
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData True
+CutOffPointDataAmount 10
+ErrorThreshold 0.1
+
+HitsMissesNonguesses 10, 596, 0
+HitPercentage 0.01650162293461562
+AverageError 0.669140740042
+MeanError 0.669141844234
+=======================================================
+Datetime: 2017-12-18 11:53:38.441019
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData True
+CutOffPointDataAmount 10
+ErrorThreshold 0.1
+
+HitsMissesNonguesses 14, 462, 0
+HitPercentage 0.029411702916590513
+AverageError 0.666148210946
+MeanError 0.666149610417
+=======================================================
+Datetime: 2017-12-18 11:55:14.615095
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData True
+CutOffPointDataAmount 10
+ErrorThreshold 0.1
+
+HitsMissesNonguesses 21, 566, 0
+HitPercentage 0.0357750668227141
+AverageError 0.660962172706
+MeanError 0.660963298706
+=======================================================
+Datetime: 2017-12-18 11:56:13.964811
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData True
+CutOffPointDataAmount 10
+ErrorThreshold 0.1
+
+HitsMissesNonguesses 13, 445, 0
+HitPercentage 0.02838421750170851
+AverageError 0.668165496996
+MeanError 0.668166955872
+=======================================================
+Datetime: 2017-12-18 11:57:29.137234
+TrainingSize 0.8
+TestSize 0.1
+FractionOfUsers 0.001
+NormalizeData True
+CutOffPointDataAmount 10
+ErrorThreshold 0.1
+
+HitsMissesNonguesses 17, 728, 0
+HitPercentage 0.022818761317098903
+AverageError 0.663670772645
+MeanError 0.663671663478

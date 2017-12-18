@@ -28,3 +28,4 @@ class ExtractConfig():
 		self.normalize_data = (self.parameters['NormalizeData'][0] == 'True')
 		self.cut_off_point_data_amount = (int)(self.parameters['CutOffPointDataAmount'][0])
 		self.error_threshold = (float)(self.parameters['ErrorThreshold'][0])
+		self.min_clustersize = (int)(self.parameters['MinClusterSize'][0])

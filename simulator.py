@@ -13,11 +13,12 @@ import graphics
 
 class Simulator():
 	def __init__(self, training_size_proportion=0.8, test_size_proportion=0.1,
-	             fraction_of_users=1.0, predictor_func='best_matching_case',
-	             normalize_data=True, cut_off_point_data_amount=10, closeness_cutoff=99999999,
-	             error_threshold=0.1):
+				 fraction_of_users=1.0, predictor_func='best_matching_case',
+				 normalize_data=True, cut_off_point_data_amount=10, closeness_cutoff=99999999,
+				 error_threshold=0.1, min_cluster_size = 0):
 		self.predictors = {}
 		self.users = load_all_users()
+		rnd.shuffle(self.users)
 		self.training_size_proportion = training_size_proportion
 		self.test_size_proportion = test_size_proportion
 		self.validation_size_proportion = 1.0 - training_size_proportion - test_size_proportion
@@ -26,8 +27,13 @@ class Simulator():
 		self.normalize_data = normalize_data
 		self.cut_off_point_data_amount = cut_off_point_data_amount
 		self.closeness_cutoff = closeness_cutoff
-		self.station_coordinates = load_all_station_coordinates()
+		self.station_coordinates_or_clusters = load_all_station_coordinates(min_cluster_size=min_cluster_size)
+		if min_cluster_size > 1:
+			pass
+		else:
+			self.inv_station_coordinates = {v[0]: {v[1]: k} for k, v in self.station_coordinates_or_clusters.items()}
 		self.error_threshold = error_threshold
+		self.min_cluster_size = min_cluster_size
 
 	def connect_all_users_to_predictors(self, users):
 		for i, user in enumerate(users):
@@ -41,12 +47,13 @@ class Simulator():
 		                                       test_days=self.test_days,
 		                                       validation_days=self.validation_days,
 		                                       normalize_data=self.normalize_data,
-		                                       station_coordinates=self.station_coordinates,
-		                                       cut_off_point_data_amount=self.cut_off_point_data_amount)
+		                                       station_coordinates=self.station_coordinates_or_clusters,
+		                                       cut_off_point_data_amount=self.cut_off_point_data_amount,
+		                                       min_cluster_size=self.min_cluster_size)
 		if not data_manager.set_training_test_validation_trips():
 			return
 		if len(data_manager.all_trips) < self.cut_off_point_data_amount:
-			print("Too few trips. Less than: "+self.cut_off_point_data_amount)
+			print("Too few trips. Less than: "+str(self.cut_off_point_data_amount))
 		predictor = Predictor(training_data=data_manager.training_trips,
 		                      test_data=data_manager.test_trips,
 		                      validation_data=data_manager.validation_trips,
@@ -61,14 +68,14 @@ class Simulator():
 
 	def load_day(self, day):
 		station_status = {}
-		for station_number in self.station_coordinates:
+		for station_number in self.station_coordinates_or_clusters:
 			station_status[station_number] = 999999
 		path = 'data/trips_by_day/day_'
 		day_string = datamanager.convert_date_to_string(day)
 		formatted_csv_result = datamanager.format_csv_result(filename=(path + day_string))
 		data, labels = datamanager.format_trip_query_to_data(
 			query_job_result=formatted_csv_result,
-			station_coordinates=self.station_coordinates)
+			station_coordinates_or_clusters=self.station_coordinates_or_clusters)
 		return data, labels, station_status
 
 	def simulate_day(self, day="20.04.2017"):
@@ -94,27 +101,53 @@ class Simulator():
 	def test_by_user(self):
 		errors = []
 		hits_misses_nonguess = [0, 0, 0]
+		predicted_vs_correct_arrivals_total = {}
 		for user in self.predictors.keys():
 			predictor = self.predictors[user]
 			data = predictor.test_data
 			labels = predictor.test_labels
 			for i, data_point in enumerate(data):
-				pred_label = predictor.regression_predict(data_point)
-				if pred_label[0] == -1 and pred_label[1] == -1:
+				pred_label = predictor.get_prediction(data_point, None)
+				if pred_label[0] == -1:
 					hits_misses_nonguess[2] += 1
 				else:
 					correct_label = labels[i]
-					error = 0.0
-					for i in range(2):
-						error += (correct_label[i] - pred_label[i]) ** 2
-					error = np.sqrt(error)
-					if error < self.error_threshold:
-						hits_misses_nonguess[0] += 1
+					day = get_day_number_out_of_trip(trip=data_point, min_cluster_size=self.min_cluster_size)
+					minutes = get_minutes_after_midnight_normalized(data_point=data_point)
+					if self.min_cluster_size > 1:
+						pred_label = pred_label[0]
+						closest_vacant_station = pred_label
+						#print("closest cluster: "+str(closest_vacant_station))
+						correct_station = correct_label
 					else:
-						if error > 2:
-							print(error, correct_label, pred_label)
-						hits_misses_nonguess[1] += 1
-					errors.append(error)
+						closest_vacant_station = self.find_closest_vacant_station(pred_label)
+						correct_station = self.inv_station_coordinates[correct_label[0]][correct_label[1]]
+					if not (day in predicted_vs_correct_arrivals_total.keys()):
+						predicted_vs_correct_arrivals_total[day] \
+							= {station_number: {} for station_number in self.station_coordinates_or_clusters}
+					if minutes in predicted_vs_correct_arrivals_total[day][closest_vacant_station].keys():
+						predicted_vs_correct_arrivals_total[day][closest_vacant_station][minutes][0] += 1
+					else:
+						predicted_vs_correct_arrivals_total[day][closest_vacant_station][minutes] = [1, 0]
+					if minutes in predicted_vs_correct_arrivals_total[day][correct_station].keys():
+						predicted_vs_correct_arrivals_total[day][correct_station][minutes][1] += 1
+					else:
+						predicted_vs_correct_arrivals_total[day][correct_station][minutes] = [0, 1]
+					if self.min_cluster_size < 2:
+						error = np.linalg.norm(correct_label - pred_label)
+						if error < self.error_threshold:
+							hits_misses_nonguess[0] += 1
+						else:
+							if error > 5:
+								print(error, correct_label, pred_label)
+							hits_misses_nonguess[1] += 1
+						errors.append(error)
+					else:
+						if (pred_label == correct_label):
+							hits_misses_nonguess[0] += 1
+						else:
+							hits_misses_nonguess[1] += 1
+
 					"""if (self.station_status[correct_label] == 0 or self.station_status[pred_label] == 0):
 						print("predicted:", pred_label, '   correct:', correct_label,
 							  '\nstatus predicted:', self.station_status[pred_label],
@@ -123,32 +156,73 @@ class Simulator():
 		total_guesses = 1.0 * (hits_misses_nonguess[0] + hits_misses_nonguess[1])
 		total_guesses += 0.001
 		hit_percentage = hits_misses_nonguess[0] / (total_guesses)
-		average_error = np.sum(errors) / total_guesses
+		if self.min_cluster_size < 2:
+			average_error = (np.sum(errors) / total_guesses)
+			median_error = np.mean(errors)
+		else:
+			average_error = 0
+			median_error = -1
 		if total_guesses != 0:
 			print("Hit percentage: %.4f" % hit_percentage)
-			print("Average error: %.3f" % average_error)
+			if self.min_cluster_size < 2:
+				print("Average error: %.3f" % average_error)
 		else:
 			print("Didn't guess any")
-		return hits_misses_nonguess, hit_percentage, average_error, errors
+		for day in predicted_vs_correct_arrivals_total.keys():
+			print("Day:" +str(day))
+			for station in predicted_vs_correct_arrivals_total[day].keys():
+				if len(predicted_vs_correct_arrivals_total[day][station].keys()) != 0:
+					if self.min_cluster_size > 1:
+						if station < 30:
+							plot_day(predicted_vs_correct_arrivals_total, day_key=day, station_key=station)
+					else:
+						plot_day(predicted_vs_correct_arrivals_total, day_key=day, station_key=station)
+		print(hits_misses_nonguess, hit_percentage, average_error, errors, median_error)
+		return hits_misses_nonguess, hit_percentage, average_error, errors, median_error
+
+	def find_closest_vacant_station(self, coordinates, station_status=None):
+		closest_station = -1
+		distance = 99999999
+		for station_number in self.station_coordinates_or_clusters.keys():
+			station_number_coordinates = self.station_coordinates_or_clusters[station_number]
+			new_distance = np.linalg.norm(coordinates-station_number_coordinates)
+			if new_distance < distance:
+				if station_status == None:
+					distance = new_distance
+					closest_station = station_number
+				else:
+					if self.station_status[station_number] != 0:
+						distance = new_distance
+						closest_station = station_number
+
+		return closest_station
 
 	def test(self):
 		errors = []
 		print('Loading test days')
 		hits_misses_nonguess = [0, 0, 0]
-		self.last_time_updated = -1
+		predicted_vs_correct_arrivals_total = []
+		predicted_vs_correct_arrivals_hour = None
 		for day in self.test_days:
+			self.last_time_updated = -1
 			data, labels, self.station_status = self.load_day(day=day)
 			self.station_status_updates = load_station_status_updates(day=day)
+			predicted_vs_correct_arrivals_day = []
+			hour = -2
 			for i, data_point in enumerate(data):
+				while (int)(self.last_time_updated) / 60 > hour:
+					hour += 1
+					predicted_vs_correct_arrivals_hour = {key: [0, 0] for key in self.station_coordinates_or_clusters.keys()}
+					predicted_vs_correct_arrivals_day.append(predicted_vs_correct_arrivals_hour)
 				pred_label = self.get_prediction(data_point=data_point)
 				if pred_label[0] == -1 and pred_label[1] == -1:
 					hits_misses_nonguess[2] += 1
 				else:
 					correct_label = labels[i]
-					error = 0.0
-					for i in range(2):
-						error += (correct_label[i] - pred_label[i]) ** 2
-					error = np.sqrt(error)
+					#error = 0.0
+					#for i in range(2):
+					#	error += (correct_label[i] - pred_label[i]) ** 2
+					error = np.linalg.norm(correct_label-pred_label)
 					if error < self.error_threshold:
 						hits_misses_nonguess[0] += 1
 					else:
@@ -156,21 +230,33 @@ class Simulator():
 							print(error, correct_label, pred_label)
 						hits_misses_nonguess[1] += 1
 					errors.append(error)
+					closest_vacant_station = self.find_closest_vacant_station(pred_label)
+					correct_station = self.inv_station_coordinates[correct_label[0]][correct_label[1]]
+					predicted_vs_correct_arrivals_hour[closest_vacant_station][0] += 1
+					predicted_vs_correct_arrivals_hour[correct_station][1] += 1
+					"""print(closest_vacant_station)
+					print(correct_station)
+					print(predicted_vs_correct_arrivals_hour)
+					print(hour)
+					print(predicted_vs_correct_arrivals_day[hour])"""
 					"""if (self.station_status[correct_label] == 0 or self.station_status[pred_label] == 0):
 						print("predicted:", pred_label, '   correct:', correct_label,
-						      '\nstatus predicted:', self.station_status[pred_label],
-						      'status correct:', self.station_status[correct_label])"""
+							  '\nstatus predicted:', self.station_status[pred_label],
+							  'status correct:', self.station_status[correct_label])"""
+
+			predicted_vs_correct_arrivals_total.append(predicted_vs_correct_arrivals_day)
 		print("Hits vs misses:", hits_misses_nonguess)
 		total_guesses = 1.0 * (hits_misses_nonguess[0] + hits_misses_nonguess[1])
 		total_guesses += 0.001
 		hit_percentage = hits_misses_nonguess[0] / (total_guesses)
 		average_error = np.sum(errors) / total_guesses
+		median_error = np.mean(errors)
 		if total_guesses != 0:
 			print("Hit percentage: %.4f" % hit_percentage)
 			print("Average error: %.3f" % average_error)
 		else:
 			print("Didn't guess any")
-		return hits_misses_nonguess, hit_percentage, average_error, errors
+		return hits_misses_nonguess, hit_percentage, average_error, errors, median_error
 
 	def get_prediction(self, data_point):
 		# update station status
@@ -179,10 +265,14 @@ class Simulator():
 		user_ID = data_point[-1]
 		# print(user_ID, self.predictors.keys())
 		if user_ID in self.predictors.keys():
+			#print('userID: ', user_ID, 'normalized trip userID: ', data_point[-1])
 			pred_label = self.predictors[user_ID].get_prediction(case=data_point,
-			                                                        station_status=self.station_status)
+																	station_status=self.station_status)
 			return pred_label
 		# else: say we dont want to guess
+		if (int)(user_ID)*1.0 != user_ID:
+			print("Line 245 in simulator.py")
+			print(user_ID)
 		return [-1, -1]
 
 	def update_station_status(self, data_point):
@@ -221,9 +311,9 @@ class Simulator():
 					unique_days.append(row)
 		else:
 			query_text = 'SELECT CAST(started_at AS DATE) ' \
-			             'FROM `uip-students.oslo_bysykkel_legacy.trip` T ' \
-			             'GROUP BY CAST(started_at AS DATE) ' \
-			             'LIMIT 10000'
+						 'FROM `uip-students.oslo_bysykkel_legacy.trip` T ' \
+						 'GROUP BY CAST(started_at AS DATE) ' \
+						 'LIMIT 10000'
 			print("collecting query result...")
 			query_result = self.query(query_text)
 			print("got query result")
@@ -259,22 +349,39 @@ class Simulator():
 	def run(self):
 		self.split_days_into_training_test_vaildation()
 		percentage_of_users = (int)(len(self.users) * self.fraction_of_users)
-		self.connect_all_users_to_predictors(users=self.users[:percentage_of_users])
-		# test_day = self.test_days[(int)(len(self.test_days)/3)]
-		# self.simulate_day(test_day)
-		hits_misses_nonguesses, hit_percentage, average_error, errors = self.test_by_user()
+		self.users = self.users[:percentage_of_users]
+		self.connect_all_users_to_predictors(users=self.users)
+		if self.min_cluster_size > 1:
+			station_cluster = {}
+			for key in self.station_coordinates_or_clusters.keys():
+				value = self.station_coordinates_or_clusters[key]
+				if not value in station_cluster.keys():
+					station_cluster[value] = []
+				station_cluster[value].append(key)
+			self.station_coordinates_or_clusters = station_cluster
+		hits_misses_nonguesses, hit_percentage, average_error, errors, mean_error = self.test_by_user()
 		write_results_to_file(simulator=self,
-		                      hits_misses_nonguesses=hits_misses_nonguesses,
-		                      hit_percentage=hit_percentage,
-		                      average_error=average_error,
-		                      error_threshold=self.error_threshold)
-		graphics.plot_histogram(data=errors, title='Error plot', xlabel='Error')
+							  hits_misses_nonguesses=hits_misses_nonguesses,
+							  hit_percentage=hit_percentage,
+							  average_error=average_error,
+							  error_threshold=self.error_threshold,
+							  mean_error=mean_error)
+		graphics.plot_histogram(data=[errors], title='Error plot', xlabel='Error', xscale='log', save=True)
+
+def get_day_number_out_of_trip(trip, min_cluster_size):
+	year_week_weekday = datamanager.get_year_week_week_day(trip=trip, min_cluster_size=min_cluster_size)
+	year = year_week_weekday[0]
+	week = year_week_weekday[1]
+	weekday = year_week_weekday[2]
+	#print('daynumber:', year, week, weekday)
+	day_number = (year-2016)*365 + week*7 + weekday
+	return (day_number)
 
 def get_minutes_after_midnight_normalized(data_point):
 	return (data_point[-2])
 
 
-def load_all_station_coordinates():
+def load_all_station_coordinates(min_cluster_size=0):
 	station_coordinates = {}
 
 	filename = 'data/stations_2017.csv'
@@ -291,14 +398,31 @@ def load_all_station_coordinates():
 			utm_coordinates = [utm_coordinate for utm_coordinate in utm.from_latlon(lat, lon)[:2]]
 			all_coordinates.append(utm_coordinates)
 	all_coordinates = np.array(all_coordinates)
-
-	print('Max utm0: '+str(max(all_coordinates[:,0])))
+	if min_cluster_size > 0:
+		print('clustering at line 364 in simulator.py')
+		clusterer = datamanager.hdb_cluster(all_coordinates)
+		cluster_labels = clusterer.fit(all_coordinates)
+		labels = clusterer.fit_predict(all_coordinates)
+		station_cluster = {}
+		counter = max(labels) +1
+		for i, station_number in enumerate(all_stations):
+			if labels[i] == -1:
+				station_cluster[station_number] = counter
+				counter += 1
+			else:
+				station_cluster[station_number] = labels[i]
+		#print(all_coordinates[100000000])
+		for value in station_cluster.values():
+			pass
+			#print(value)
+		return station_cluster
+	all_coordinates = datamanager.normalize_data(all_coordinates)
+	"""print('Max utm0: '+str(max(all_coordinates[:,0])))
 	print('Min utm0: '+str(min(all_coordinates[:,0])))
 	print('Max utm1: '+str(max(all_coordinates[:,1])))
 	print('Min utm1: '+str(min(all_coordinates[:,1])))
 	print('argmax: '+str(np.argmax(all_coordinates)))
-	print('argmin: '+str(np.argmin(all_coordinates)))
-	all_coordinates = datamanager.normalize_data(all_coordinates)
+	print('argmin: '+str(np.argmin(all_coordinates)))"""
 	for i, station in enumerate(all_stations):
 		utm_coordinates = all_coordinates[i]
 		station_coordinates[station] = utm_coordinates
@@ -335,7 +459,27 @@ def load_station_status_updates(day):
 			updates[minutes_after_midnight].append(info)
 	return updates
 
-def write_results_to_file(simulator, hits_misses_nonguesses, hit_percentage, average_error, error_threshold):
+def plot_day(prediction_vs_correct, day_key, station_key):
+	data = prediction_vs_correct[day_key][station_key]
+	y1 = []
+	y2 = []
+	for minute in data.keys():
+		hour = minute/60
+		predicted = data[minute][0]
+		correct = data[minute][1]
+		#print(predicted, correct, hour)
+		for i in range(predicted):
+			y1.append(hour)
+		for i in range(correct):
+			y2.append(hour)
+	day_key = (int)(day_key)
+	graphics.plot_histogram(data=[y1, y2], number_of_bins=24, title='Demand for day: '+str(day_key)
+																	+ '\n station: '+str(station_key),
+							xlabel='Hour', ylabel='Number of bikes', show=False, save=True,
+	                        path='plots/day_plot/')
+
+def write_results_to_file(simulator, hits_misses_nonguesses, hit_percentage, average_error, error_threshold,
+						  mean_error):
 	filename = simulator.predictor_func
 	path = "results/"
 	total_filename = path+filename+'.txt'
@@ -346,6 +490,7 @@ def write_results_to_file(simulator, hits_misses_nonguesses, hit_percentage, ave
 			file = open(total_filename, 'w')
 	with open(total_filename, 'a') as f:
 		text = "======================================================="
+		text += '\nDatetime: ' + str(datetime.datetime.now())
 		text += '\nTrainingSize ' + str(simulator.training_size_proportion)
 		text += '\nTestSize ' + str(simulator.test_size_proportion)
 		text += '\nFractionOfUsers ' + str(simulator.fraction_of_users)
@@ -359,5 +504,6 @@ def write_results_to_file(simulator, hits_misses_nonguesses, hit_percentage, ave
 		text = text[:-2]
 		text += '\nHitPercentage ' + str(hit_percentage)
 		text += '\nAverageError ' + str(average_error)
+		text += '\nMeanError ' + str(mean_error)
 		text += "\n"
 		f.write(text)

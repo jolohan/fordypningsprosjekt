@@ -30,6 +30,8 @@ class Predictor:
 			pass
 		elif self.predictor_func[:len('Regression')] == "Regression":
 			return self.regressor()
+		elif self.predictor_func == 'GRBT':
+			return self.GRBT_classifier()
 		else:
 			print("Didn't recognize predictor function: "+self.predictor_func)
 			print('Use regresion')
@@ -37,11 +39,7 @@ class Predictor:
 		return True
 
 	def regressor(self):
-		if (self.test_data == None or self.training_data == None):
-			return False
-		if (len(self.test_data) == 0):
-			return False
-		if (len(self.training_data) < 2):
+		if not self.has_data():
 			return False
 		#if not (check_if_distinct_values(self.training_labels)):
 		#	return False
@@ -52,11 +50,18 @@ class Predictor:
 		X = self.training_data
 		# multivariate output
 		Y = self.training_labels
-		if (self.predictor_func == 'RegressionLasso'):
+		which_regressor = self.predictor_func[len('Regression'):]
+		if (which_regressor == 'Lasso'):
 			# Lasso
+			self.clf = linear_model.Lasso()
+		elif (which_regressor == 'ElasticNet'):
+			# ElasticNet
 			self.clf = linear_model.ElasticNet()
-		else:
+		elif (which_regressor == 'Linear'):
 			self.clf = linear_model.LinearRegression()
+		else:
+			print("Didnt recognize regressorfunction: "+which_regressor+". Run: Lasso")
+			self.clf = linear_model.Lasso()
 		self.clf.fit(X, Y)
 		self.clf.predict(self.test_data)
 
@@ -69,7 +74,27 @@ class Predictor:
 		#print("getting prediction")
 		return self.clf.predict(case.reshape(1, -1))[0]
 
+	def GRBT_predict(self, case):
+		return self.est.predict(case.reshape(1, -1))
+
+	def has_data(self):
+		if (type(self.test_data) == None or type(self.training_data) == None):
+			return False
+		if (len(self.test_data) == 0):
+			return False
+		if (len(self.training_data) < 2):
+			return False
+		return True
+
 	def GRBT_classifier(self):
+		if self.has_data():
+			pass
+		else:
+			return False
+		if check_if_distinct_values(self.training_labels):
+			pass
+		else:
+			return False
 		# fit estimator
 		#print('Length of training data:',len(self.training_data))
 		#print('Length of training labels:',len(self.training_labels))
@@ -144,6 +169,8 @@ class Predictor:
 				case=case, station_status=station_status)
 		elif self.predictor_func[:len('Regression')] == "Regression":
 			return self.regression_predict(case=case)
+		elif self.predictor_func == 'GRBT':
+			return self.GRBT_predict(case=case)
 		else:
 			print("Didn't recognize predictor function: "+self.predictor_func)
 			print("Using regression_prediction")

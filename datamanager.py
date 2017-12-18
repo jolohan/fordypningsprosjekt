@@ -5,6 +5,7 @@ import numpy as np
 from sklearn import preprocessing
 import random as rnd
 import csv
+import hdbscan
 
 #########################################
 # export GOOGLE_APPLICATION_CREDENTIALS=/Users/johan/PycharmProjects/Fordypningsprosjekt/'UIP students-8ffa90ab95f7.json'
@@ -29,7 +30,7 @@ query1 = 'SELECT COUNT(DISTINCT (ID)) as trips FROM `uip-students.oslo_bysykkel_
 class DataManager():
 
 	def __init__(self, user_ID, training_days, test_days, validation_days, normalize_data,
-	             station_coordinates, cut_off_point_data_amount=0):
+	             station_coordinates, cut_off_point_data_amount=0, min_cluster_size=0):
 		self.user_ID = user_ID
 		# Instantiates a client
 		self.bigquery_client = bigquery.Client()
@@ -41,6 +42,7 @@ class DataManager():
 		self.station_coordinates = station_coordinates
 		self.all_trips = None
 		self.all_labels = None
+		self.min_cluster_size = min_cluster_size
 		#print("all days are to be collected")
 
 	def query(self, query):
@@ -70,7 +72,7 @@ class DataManager():
 		counters = [0, 0, 0]
 		for i, trip in enumerate(self.all_trips):
 			label = self.all_labels[i]
-			year_week_weekday = self.get_year_week_week_day(trip)
+			year_week_weekday = get_year_week_week_day(trip, min_cluster_size=self.min_cluster_size)
 			flag = False
 			for test_day in self.test_days:
 				if (compare_numpy_dates_arrays(year_week_weekday, test_day)):
@@ -111,15 +113,18 @@ class DataManager():
 		else:
 			result_from_query_or_csv = self.query_all_trips_by_user(userID=user_ID)
 		self.all_trips, self.all_labels = format_trip_query_to_data(query_job_result=result_from_query_or_csv,
-		                                                            station_coordinates=self.station_coordinates)
+		                                                            station_coordinates_or_clusters=self.station_coordinates)
 
-	def get_year_week_week_day(self, trip):
-		return trip[2:5]
 
 
 # =====================
 # == Diverse methods ==
 # =====================
+
+def hdb_cluster(data, min_cluster_size=2):
+	clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size)
+	#cluster_labels = clusterer.fit(data)
+	return clusterer
 
 def normalize_data(data):
 	if (len(data) > 0): return preprocessing.scale(data)
@@ -137,7 +142,7 @@ def format_csv_result(filename):
 		result_from_query_or_csv.append(formatted_row)
 	return result_from_query_or_csv
 
-def format_trip_query_to_data(query_job_result, station_coordinates):
+def format_trip_query_to_data(query_job_result, station_coordinates_or_clusters):
 	trip_data = list(query_job_result)
 	formatted_trips = []
 	labels = []
@@ -156,11 +161,11 @@ def format_trip_query_to_data(query_job_result, station_coordinates):
 		start_station = (int)(start_station)
 		end_station = (int)(end_station)
 
-		if (start_station == None or (not (start_station in station_coordinates.keys()))):
+		if (start_station == None or (not (start_station in station_coordinates_or_clusters.keys()))):
 			pass
 			#print(end_station)
 			#print(start_station)
-		elif (end_station == None or (not (end_station in station_coordinates.keys()))):
+		elif (end_station == None or (not (end_station in station_coordinates_or_clusters.keys()))):
 			pass
 			#print(end_station)
 			#print(start_station)
@@ -170,14 +175,15 @@ def format_trip_query_to_data(query_job_result, station_coordinates):
 		else:
 			start_time = split_date_time_object(start_time)
 			end_time = split_date_time_object(end_time)
-			start_station = station_coordinates[start_station]
-			formatted_trip = [coordinate for coordinate in start_station]
+			start_station = station_coordinates_or_clusters[start_station] + [0]
+			#print('startstation:' + str(start_station))
+			formatted_trip = [coordinate_or_cluster for coordinate_or_cluster in start_station]
 			formatted_trip += start_time
 			#formatted_trip.append(end_time[-1])
 			formatted_trip.append((int)(member_ID))
 			formatted_trips.append(formatted_trip)
 
-			end_station = station_coordinates[end_station]
+			end_station = station_coordinates_or_clusters[end_station]
 			labels.append(end_station)
 	formatted_trips = np.array(formatted_trips)
 	labels = np.array(labels)
@@ -242,6 +248,12 @@ def convert_date_to_string(date):
 		s += "."
 	s = s[:-1]
 	return s
+
+def get_year_week_week_day(trip, min_cluster_size):
+	if min_cluster_size < 2:
+		return trip[2:5]
+	else:
+		return trip[1:4]
 
 def convert_date_to_string_year_month_day(date):
 	s = convert_date_to_string(date)
