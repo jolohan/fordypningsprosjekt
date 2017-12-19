@@ -106,10 +106,10 @@ class Predictor:
 
 		# score on test data (accuracy)
 		acc = self.est.score(self.test_data, self.test_labels)
-		print('ACC: %.4f' % acc)
+		#print('ACC: %.4f' % acc)
 
 		# predict class probabilities
-		print(self.est.predict_proba(self.training_data)[0])
+		#print(self.est.predict_proba(self.training_data)[0])
 		return True
 
 	def find_best_matching_case(self, case, station_status):

@@ -1,5 +1,5 @@
 # Imports the Google Cloud client library
-from google.cloud import bigquery
+#from google.cloud import bigquery
 import datetime
 import numpy as np
 from sklearn import preprocessing
@@ -33,7 +33,7 @@ class DataManager():
 	             station_coordinates, cut_off_point_data_amount=0, min_cluster_size=0):
 		self.user_ID = user_ID
 		# Instantiates a client
-		self.bigquery_client = bigquery.Client()
+		#self.bigquery_client = bigquery.Client()
 		self.training_days = [convert_to_year_week_weekday(day) for day in training_days]
 		self.test_days = [convert_to_year_week_weekday(day) for day in test_days]
 		self.validation_days = [convert_to_year_week_weekday(day) for day in validation_days]
@@ -45,7 +45,7 @@ class DataManager():
 		self.min_cluster_size = min_cluster_size
 		#print("all days are to be collected")
 
-	def query(self, query):
+	"""def query(self, query):
 		client = bigquery.Client()
 		query_job = client.query(query)
 		return query_job.result()
@@ -53,7 +53,7 @@ class DataManager():
 	def query_all_trips_by_user(self, userID=5701):
 		query_text = 'SELECT * FROM `uip-students.oslo_bysykkel_legacy.trip`' \
 				'WHERE member_id = ' + str(userID)
-		return self.query(query_text)
+		return self.query(query_text)"""
 
 	def set_training_test_validation_trips(self):
 		self.set_formatted_trips_by_user()
@@ -248,6 +248,12 @@ def convert_date_to_string(date):
 		s += "."
 	s = s[:-1]
 	return s
+
+def get_year_week_weekday_from_day_number(day_number):
+	year = day_number//365
+	week = (day_number%365)//7
+	weekday = (day_number%365)%7
+	return year, week, weekday
 
 def get_year_week_week_day(trip, min_cluster_size):
 	if min_cluster_size < 2:

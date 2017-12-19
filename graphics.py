@@ -26,12 +26,13 @@ def plot_histogram(data, number_of_bins=1000, title='Histogram', xlabel='Value',
 	plt.xscale(xscale)
 	#plt.xticks(10**(np.arange(-2.0, 1, step=0.2)))
 	date_string = '_'.join(str(datetime.datetime.now()).split(' ')).split('.')[0]
+	#print(date_string)
 	if save:
 		directory = path + date_string.split(':')[0]
 		if not os.path.exists(directory):
 			os.makedirs(directory)
 		directory += '/'
-		filename = directory+'/'+date_string+'_'+'_'.join('_'.join(title.split('\n')).split(' '))
+		filename = directory+title
 		#print(filename)
 		plt.savefig(filename, bbox_inches='tight')
 	#plt.savefig(title, bbox_inches='tight')

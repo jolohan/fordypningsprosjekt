@@ -119,6 +119,10 @@ class Simulator():
 						closest_vacant_station = pred_label
 						#print("closest cluster: "+str(closest_vacant_station))
 						correct_station = correct_label
+						"""class_prob = predictor.est.predict_proba(data_point.reshape(1, -1))#[0][correct_label]
+						if (len(class_prob) > correct_label):
+							class_prob += 
+						print(class_prob)"""
 					else:
 						closest_vacant_station = self.find_closest_vacant_station(pred_label)
 						correct_station = self.inv_station_coordinates[correct_label[0]][correct_label[1]]
@@ -168,16 +172,19 @@ class Simulator():
 				print("Average error: %.3f" % average_error)
 		else:
 			print("Didn't guess any")
+		counter = 0
 		for day in predicted_vs_correct_arrivals_total.keys():
-			print("Day:" +str(day))
+			counter += 1
+			print("Day:" +str(day) + ". Day # "+str(counter)+ ' out of: '+str(len(predicted_vs_correct_arrivals_total.keys())))
 			for station in predicted_vs_correct_arrivals_total[day].keys():
 				if len(predicted_vs_correct_arrivals_total[day][station].keys()) != 0:
 					if self.min_cluster_size > 1:
 						if station < 30:
-							plot_day(predicted_vs_correct_arrivals_total, day_key=day, station_key=station)
+							plot_day(predicted_vs_correct_arrivals_total, day_key=day, station_key=station,
+							         cluster=True)
 					else:
 						plot_day(predicted_vs_correct_arrivals_total, day_key=day, station_key=station)
-		print(hits_misses_nonguess, hit_percentage, average_error, errors, median_error)
+		print(hits_misses_nonguess, hit_percentage, average_error, median_error)
 		return hits_misses_nonguess, hit_percentage, average_error, errors, median_error
 
 	def find_closest_vacant_station(self, coordinates, station_status=None):
@@ -368,6 +375,7 @@ class Simulator():
 							  mean_error=mean_error)
 		graphics.plot_histogram(data=[errors], title='Error plot', xlabel='Error', xscale='log', save=True)
 
+
 def get_day_number_out_of_trip(trip, min_cluster_size):
 	year_week_weekday = datamanager.get_year_week_week_day(trip=trip, min_cluster_size=min_cluster_size)
 	year = year_week_weekday[0]
@@ -459,7 +467,7 @@ def load_station_status_updates(day):
 			updates[minutes_after_midnight].append(info)
 	return updates
 
-def plot_day(prediction_vs_correct, day_key, station_key):
+def plot_day(prediction_vs_correct, day_key, station_key, cluster=False):
 	data = prediction_vs_correct[day_key][station_key]
 	y1 = []
 	y2 = []
@@ -473,8 +481,12 @@ def plot_day(prediction_vs_correct, day_key, station_key):
 		for i in range(correct):
 			y2.append(hour)
 	day_key = (int)(day_key)
-	graphics.plot_histogram(data=[y1, y2], number_of_bins=24, title='Demand for day: '+str(day_key)
-																	+ '\n station: '+str(station_key),
+	year, week, week_day = datamanager.get_year_week_weekday_from_day_number(day_key)
+	title = 'Demand_for_year:'+str(year)+'_week:'+str(week)+'_weekday:'+str(week_day)
+	if cluster:
+		title += '\nFor cluster:_'+str(station_key)
+	'+\nstation: '+str(station_key)
+	graphics.plot_histogram(data=[y1, y2], number_of_bins=24, title=title,
 							xlabel='Hour', ylabel='Number of bikes', show=False, save=True,
 	                        path='plots/day_plot/')
 
